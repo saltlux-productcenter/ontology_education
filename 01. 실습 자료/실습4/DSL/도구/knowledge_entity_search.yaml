@@ -1,0 +1,3283 @@
+app:
+  description: 이름이나 키워드로 온톨로지의 클래스, 속성, 인스턴스를 검색하고 관련 IRI와 유형 정보를 반환
+  icon: ri-git-merge-line
+  icon_background: '#14b8a6'
+  mode: workflow
+  name: knowledge_entity_search
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Knowledge Studio(SOR 6.0.0) 서버 root 주소. 관리 화면(/admin), REST API(/api/v1),
+      SPARQL endpoint(/{repositoryId}/sparql)가 같은 포트에 있다. 끝에 / 와 /admin 을 붙이지 않는다(붙어
+      있으면 도구가 뗀다)
+    id: 2b9b4c25-7c74-f8a3-19d4-5f31413ed229
+    name: SOR_BASE_URL
+    selector:
+    - env
+    - SOR_BASE_URL
+    value: http://211.109.9.74:18080
+    value_type: string
+  - description: 조회 전용 서비스 계정 이름. SPARQL_READ 이상 role 과 대상 repository 범위가 있어야 한다
+    id: 2ca77054-8f47-0918-0bd3-a8043d23ca59
+    name: SOR_USERNAME
+    selector:
+    - env
+    - SOR_USERNAME
+    value: ontology_edu
+    value_type: string
+  - description: 조회 전용 서비스 계정 비밀번호. secret 이라 export 시 비워진다
+    id: 62a2917e-638c-ba07-7d5c-19de49f0d1bd
+    name: SOR_PASSWORD
+    selector:
+    - env
+    - SOR_PASSWORD
+    value: ''
+    value_type: secret
+  - description: repository 인자를 비웠을 때 쓰는 기본 repository ID. 비워 두면 repository 인자가 사실상
+      필수가 된다
+    id: fc9938ae-f202-2132-3a9f-c926780e7a13
+    name: SOR_REPOSITORY
+    selector:
+    - env
+    - SOR_REPOSITORY
+    value: manufacturing_erp_ontology
+    value_type: string
+  - description: 추론 결과 포함 여부(true 또는 false). SPARQL, overview, resource 조회의 includeInferred
+      로 보낸다
+    id: 64b8c65a-7642-7360-2d06-70c7590729ec
+    name: SOR_INCLUDE_INFERRED
+    selector:
+    - env
+    - SOR_INCLUDE_INFERRED
+    value: 'true'
+    value_type: string
+  - description: RDB Federation 매핑 포함 여부(true 또는 false). includeFederation 으로 보낸다
+    id: b3d7ed78-a958-587e-1d80-32c8938a5eb5
+    name: SOR_INCLUDE_FEDERATION
+    selector:
+    - env
+    - SOR_INCLUDE_FEDERATION
+    value: 'false'
+    value_type: string
+  - description: SPARQL 질의 timeout(ms). 1,000 미만은 1,000, 110,000 초과는 110,000 으로 맞춘다.
+      이름 검색의 포함 검색과 IRI 검색은 10,000 을 넘지 않는다
+    id: 8e69e122-af8f-f0aa-c1c5-2fedaae6fae1
+    name: SOR_TIMEOUT_MS
+    selector:
+    - env
+    - SOR_TIMEOUT_MS
+    value: 30000
+    value_type: integer
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: start-source-prep-target
+      label: ''
+      source: start
+      sourceHandle: source
+      target: prep
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: prep-source-gate_pre-target
+      label: ''
+      source: prep
+      sourceHandle: source
+      target: gate_pre
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate_pre-go-login-target
+      label: ''
+      source: gate_pre
+      sourceHandle: go
+      target: login
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: gate_pre-false-merge-target
+      label: ''
+      selected: false
+      source: gate_pre
+      sourceHandle: 'false'
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: login-source-auth-target
+      label: ''
+      selected: false
+      source: login
+      sourceHandle: source
+      target: auth
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: auth-source-gate_auth-target
+      label: ''
+      selected: false
+      source: auth
+      sourceHandle: source
+      target: gate_auth
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: gate_auth-false-merge-target
+      label: ''
+      selected: false
+      source: gate_auth
+      sourceHandle: 'false'
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate_auth-ready-q_repos-target
+      label: ''
+      selected: false
+      source: gate_auth
+      sourceHandle: ready
+      target: q_repos
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate_auth-ready-q_exact-target
+      label: ''
+      selected: false
+      source: gate_auth
+      sourceHandle: ready
+      target: q_exact
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate_auth-ready-q_contains-target
+      label: ''
+      selected: false
+      source: gate_auth
+      sourceHandle: ready
+      target: q_contains
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate_auth-ready-q_iri-target
+      label: ''
+      selected: false
+      source: gate_auth
+      sourceHandle: ready
+      target: q_iri
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate_auth-no_repo-q_repos-target
+      label: ''
+      selected: false
+      source: gate_auth
+      sourceHandle: no_repo
+      target: q_repos
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: http-request
+      id: q_repos-source-logout-target
+      label: ''
+      selected: false
+      source: q_repos
+      sourceHandle: source
+      target: logout
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: http-request
+      id: q_exact-source-logout-target
+      label: ''
+      selected: false
+      source: q_exact
+      sourceHandle: source
+      target: logout
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: http-request
+      id: q_contains-source-logout-target
+      label: ''
+      selected: false
+      source: q_contains
+      sourceHandle: source
+      target: logout
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: http-request
+      id: q_iri-source-logout-target
+      label: ''
+      selected: false
+      source: q_iri
+      sourceHandle: source
+      target: logout
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: logout-source-assemble-target
+      label: ''
+      selected: false
+      source: logout
+      sourceHandle: source
+      target: assemble
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: code
+      id: assemble-source-merge-target
+      label: ''
+      selected: false
+      source: assemble
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: end
+      id: merge-source-done-target
+      label: ''
+      selected: false
+      source: merge
+      sourceHandle: source
+      target: done
+      targetHandle: target
+      type: custom
+    nodes:
+    - computedPosition:
+        x: 80
+        y: 140
+        z: 0
+      data:
+        desc: repository ID(비우면 기본값), 이름(필수), class IRI(선택)를 받는다
+        display_variables:
+        - repository
+        - name
+        - class_iri
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 시작
+        type: start
+        variables:
+        - default: ''
+          description: '조회할 Knowledge Studio repository 의 ID 다. kg_list_repositories
+            결과에서 can_query 가 true 인 repositories[].id 를 한 글자도 바꾸지 않고 넣는다. 도구 설정에 기본
+            repository 가 있으면 빈 문자열 "" 로 둔다(null 금지). 예시 1: manufacturing-kg. 예시 2:
+            demo. 사용자가 말한 단서를 그대로 쓰고 값을 지어내지 않는다.'
+          label: repository ID
+          required: false
+          type: text-input
+          variable: repository
+        - default: ''
+          description: '찾을 instance 의 이름이다. 사용자가 말한 이름을 그대로 넣고 낱말을 바꾸거나 설명을 덧붙이지 않는다.
+            정확 일치, 포함 검색, IRI 끝 이름 일치를 함께 본다. IRI 는 넣지 않는다. 예시 1: 1번 펌프. 예시 2: P-101.
+            사용자가 말한 단서를 그대로 쓰고 값을 지어내지 않는다.'
+          label: instance 이름
+          required: true
+          type: text-input
+          variable: name
+        - default: ''
+          description: '후보를 좁힐 class 의 절대 IRI(http, https, urn)다. kg_describe_schema
+            결과의 classes[].iri 를 그대로 넣고, 모르면 빈 문자열 "" 로 둔다(null 금지). prefix 표기(ex:Pump)는
+            받지 않는다. 예시 1: https://example.org/onto#Pump. 예시 2: https://example.org/onto#Equipment.
+            사용자가 말한 단서를 그대로 쓰고 값을 지어내지 않는다.'
+          label: class IRI
+          required: false
+          type: text-input
+          variable: class_iri
+      dimensions:
+        height: 202
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: start
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.800018310546875
+        target: null
+      id: start
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 460
+        y: 140
+        z: 0
+      data:
+        code: "\ndef _txt(value):\n    \"\"\"None 과 숫자를 포함해 무엇이 오든 문자열로 만든다.\"\"\"\
+          \n    return \"\" if value is None else str(value)\n\n\ndef _cut(text, limit):\n\
+          \    body = _txt(text)\n    return body if len(body) <= limit else body[:limit]\n\
+          \n\ndef _one_line(text, limit):\n    \"\"\"줄바꿈과 연속 공백을 한 칸으로 줄이고 limit 자에서\
+          \ 자른다.\"\"\"\n    return _cut(\" \".join(_txt(text).split()), limit)\n\n\
+          \ndef _local_name(iri):\n    \"\"\"IRI 의 마지막 #, /, : 뒤 이름. 없으면 원문.\"\"\"\
+          \n    text = _txt(iri).strip()\n    cut = max(text.rfind(\"#\"), text.rfind(\"\
+          /\"), text.rfind(\":\"))\n    tail = text[cut + 1:] if cut >= 0 else text\n\
+          \    return tail or text\n\n\ndef _list_of(value):\n    \"\"\"dict 원소만 남긴\
+          \ 목록. 목록이 아니면 빈 목록.\"\"\"\n    if not isinstance(value, list):\n       \
+          \ return []\n    return [item for item in value if isinstance(item, dict)]\n\
+          \n\ndef _term_of(statement, key):\n    \"\"\"statement 의 subject, predicate,\
+          \ object term. dict 가 아니면 빈 dict.\"\"\"\n    value = statement.get(key)\
+          \ if isinstance(statement, dict) else None\n    return value if isinstance(value,\
+          \ dict) else {}\n\n\ndef _flag(value, default):\n    text = _txt(value).strip().lower()\n\
+          \    if text in (\"true\", \"1\", \"yes\", \"y\", \"on\"):\n        return\
+          \ \"true\"\n    if text in (\"false\", \"0\", \"no\", \"n\", \"off\"):\n\
+          \        return \"false\"\n    return default\n\n\ndef _timeout_ms(value):\n\
+          \    try:\n        number = int(float(_txt(value).strip()))\n    except\
+          \ Exception:\n        number = 30000\n    return max(1000, min(110000, number))\n\
+          \n\ndef _base_url(value):\n    \"\"\"끝의 / 와 /admin 을 떼어 서버 root 로 만든다.\"\
+          \"\"\n    text = _txt(value).strip().rstrip(\"/\")\n    if text.lower().endswith(\"\
+          /admin\"):\n        text = text[:-len(\"/admin\")].rstrip(\"/\")\n    return\
+          \ text\n\n\ndef _config_error(base_url, username):\n    \"\"\"설정이 비었거나 CHANGE-ME\
+          \ 자리표시자면 config_missing, 형식이 틀리면 config_invalid.\"\"\"\n    problems = []\n\
+          \    lower = base_url.lower()\n    if not base_url or \"CHANGE-ME\" in base_url.upper():\n\
+          \        problems.append(\"config_missing: SOR_BASE_URL\")\n    elif not\
+          \ (lower.startswith(\"http://\") or lower.startswith(\"https://\")):\n \
+          \       problems.append(\"config_invalid: SOR_BASE_URL 은 http:// 또는 https://\
+          \ 로 시작해야 한다\")\n    user = _txt(username).strip()\n    if not user or \"\
+          CHANGE-ME\" in user.upper():\n        problems.append(\"config_missing:\
+          \ SOR_USERNAME\")\n    if not problems:\n        return \"\"\n    return\
+          \ (\"; \".join(problems) + \". 도구 설정의 환경변수를 채운 뒤 다시 부른다. 데이터가 없는 것이 아니라\
+          \ \"\n            \"설정 오류이므로 인자를 바꿔 다시 부르지 않는다\")\n\n\ndef _q(value):\n\
+          \    import urllib.parse\n    return urllib.parse.quote(_txt(value), safe=\"\
+          \")\n\n\ndef _build_url(base_url, path, params):\n    \"\"\"params 는 (이름,\
+          \ 값) 목록이다. 값은 전부 퍼센트 인코딩한다. (url, query string 길이).\"\"\"\n    query = \"\
+          &\".join(_q(key) + \"=\" + _q(value) for key, value in params)\n    return\
+          \ base_url + path + (\"?\" + query if query else \"\"), len(query)\n\n\n\
+          def _abs_iri(text):\n    \"\"\"절대 IRI(http, https, urn)면 (IRI, \"\"), 아니면\
+          \ (\"\", 사유).\"\"\"\n    raw = _txt(text).strip()\n    if raw.startswith(\"\
+          <\") and raw.endswith(\">\") and len(raw) > 2:\n        raw = raw[1:-1].strip()\n\
+          \    if not raw:\n        return \"\", \"비어 있다\"\n    lower = raw.lower()\n\
+          \    ok = False\n    for scheme in (\"http://\", \"https://\", \"urn:\"\
+          ):\n        if lower.startswith(scheme) and len(raw) > len(scheme):\n  \
+          \          ok = True\n    if not ok:\n        return \"\", \"절대 IRI(http,\
+          \ https, urn)가 아니다\"\n    for ch in (\"<\", \">\", '\"', \" \", \"\\t\"\
+          , \"\\n\", \"\\r\", \"{\", \"}\", \"|\", \"^\", \"`\", \"\\\\\"):\n    \
+          \    if ch in raw:\n            return \"\", \"IRI 에 쓸 수 없는 문자가 있다\"\n \
+          \   return raw, \"\"\n\n\ndef _stop(warning, repository, extra):\n    \"\
+          \"\"호출 없이 끝낼 때의 응답.\"\"\"\n    payload = {\"status\": \"error\", \"repository\"\
+          : _txt(repository), \"repository_candidates\": [],\n               \"warning\"\
+          : warning}\n    payload.update(extra)\n    return payload\n\n\ndef _lit(text):\n\
+          \    \"\"\"SPARQL 문자열 literal 로 감싼다. 역슬래시, 큰따옴표, 줄바꿈을 escape 한다.\"\"\"\n\
+          \    body = _txt(text)\n    body = body.replace(\"\\\\\", \"\\\\\\\\\").replace('\"\
+          ', '\\\\\"')\n    body = body.replace(\"\\r\\n\", \"\\n\").replace(\"\\\
+          r\", \"\\n\").replace(\"\\n\", \"\\\\n\")\n    return '\"' + body + '\"\
+          '\n\n\ndef main(repository_arg, name, class_iri, base, username, default_repo,\
+          \ inferred, federation, timeout_ms):\n    \"\"\"이름과 class_iri 를 검사하고 label\
+          \ 검색 SPARQL 3건(정확 일치, 포함, IRI 끝 이름)의 주소를 만든다.\"\"\"\n    PREFIXES = 'PREFIX\
+          \ rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\
+          \ PREFIX skos: <http://www.w3.org/2004/02/skos/core#> '\n    LIMIT = 20\
+          \ + 1\n    base_url = _base_url(base)\n    repository = _txt(repository_arg).strip()\
+          \ or _txt(default_repo).strip()\n    target = \" \".join(_txt(name).split())\n\
+          \    out = {\"base_url\": base_url, \"repository\": repository, \"route\"\
+          : \"go\", \"stop_payload\": {},\n           \"name\": target, \"class_iri\"\
+          : \"\",\n           \"repos_url\": _build_url(base_url, \"/api/v1/sparql/repositories\"\
+          , [])[0],\n           \"exact_url\": \"\", \"contains_url\": \"\", \"iri_url\"\
+          : \"\"}\n    empty = {\"candidates\": [], \"candidate_count\": 0}\n    error\
+          \ = _config_error(base_url, username)\n    if not error and not target:\n\
+          \        error = \"name_required: name 이 비었다. 사용자가 말한 대상의 이름을 넣어 다시 부른다\"\
+          \n    class_text = _txt(class_iri).strip()\n    class_value = \"\"\n   \
+          \ if not error and class_text:\n        class_value, reason = _abs_iri(class_text)\n\
+          \        if not class_value:\n            error = (\"invalid_iri: class_iri\
+          \ \" + _cut(class_text, 200) + \" 는 \" + reason + \". \"\n             \
+          \        \"kg_describe_schema 결과의 classes[].iri 를 그대로 넣거나 빈 문자열로 둔다. prefix\
+          \ 표기는 \"\n                     \"kg_describe_schema 의 prefixes 로 펼쳐 넣는다\"\
+          )\n    out[\"class_iri\"] = class_value\n    if error:\n        out[\"route\"\
+          ] = \"stop\"\n        out[\"stop_payload\"] = _stop(error, repository, empty)\n\
+          \        return out\n    if not repository:\n        return out\n\n    lower\
+          \ = target.lower()\n    class_filter = (\" ?s rdf:type/rdfs:subClassOf*\
+          \ <\" + class_value + \"> .\") if class_value else \"\"\n    select = 'SELECT\
+          \ ?s (SAMPLE(?l) AS ?label) (GROUP_CONCAT(STR(?t); separator=\" \") AS ?types)\
+          \ WHERE { '\n    labels = \"VALUES ?p { rdfs:label skos:prefLabel skos:altLabel\
+          \ } \"\n    literal = _lit(target)\n    exact = (PREFIXES + select + labels\n\
+          \             + \"VALUES ?l { \" + literal + \" \" + literal + \"@ko \"\
+          \ + literal + \"@en } \"\n             + \"?s ?p ?l .\" + class_filter +\
+          \ \" OPTIONAL { ?s rdf:type ?t } \"\n             + \"} GROUP BY ?s LIMIT\
+          \ \" + str(LIMIT))\n    contains = (PREFIXES + select + labels\n       \
+          \         + \"?s ?p ?l . FILTER(CONTAINS(LCASE(STR(?l)), \" + _lit(lower)\
+          \ + \"))\" + class_filter\n                + \" OPTIONAL { ?s rdf:type ?t\
+          \ } \"\n                + \"} GROUP BY ?s LIMIT \" + str(LIMIT))\n    variants\
+          \ = []\n    for variant in (lower, lower.replace(\" \", \"_\"), lower.replace(\"\
+          \ \", \"\")):\n        if variant and variant not in variants:\n       \
+          \     variants.append(variant)\n    ends = []\n    for variant in variants:\n\
+          \        for separator in (\"/\", \"#\", \":\"):\n            ends.append(\"\
+          STRENDS(LCASE(STR(?s)), \" + _lit(separator + variant) + \")\")\n    iri_query\
+          \ = (PREFIXES\n                 + 'SELECT ?s (SAMPLE(?lb) AS ?label) (GROUP_CONCAT(STR(?t);\
+          \ separator=\" \") AS ?types) WHERE { '\n                 + \"?s rdf:type\
+          \ ?t . FILTER(isIRI(?s) && (\" + \" || \".join(ends) + \"))\" + class_filter\n\
+          \                 + \" OPTIONAL { ?s rdfs:label ?lb } \"\n             \
+          \    + \"} GROUP BY ?s LIMIT \" + str(LIMIT))\n\n    timeout = _timeout_ms(timeout_ms)\n\
+          \    short_timeout = min(timeout, 10000)\n    infer = _flag(inferred, \"\
+          true\")\n    fed = _flag(federation, \"false\")\n    path = \"/\" + _q(repository)\
+          \ + \"/sparql\"\n    longest = 0\n    for key, query, limit_ms in ((\"exact_url\"\
+          , exact, timeout), (\"contains_url\", contains, short_timeout),\n      \
+          \                           (\"iri_url\", iri_query, short_timeout)):\n\
+          \        url, size = _build_url(base_url, path, [(\"query\", query), (\"\
+          includeInferred\", infer),\n                                           \
+          \     (\"includeFederation\", fed), (\"timeout\", str(limit_ms))])\n   \
+          \     out[key] = url\n        longest = max(longest, size)\n    if longest\
+          \ > 6000:\n        out[\"route\"] = \"stop\"\n        out[\"stop_payload\"\
+          ] = _stop(\"query_too_long: name 이 너무 길어 요청 주소가 상한을 넘었다. 핵심 낱말로 \"\n   \
+          \                                 \"줄여 다시 부른다\", repository, empty)\n  \
+          \  return out\n"
+        code_language: python3
+        default_value:
+        - key: base_url
+          type: string
+          value: ''
+        - key: repository
+          type: string
+          value: ''
+        - key: route
+          type: string
+          value: stop
+        - key: stop_payload
+          type: object
+          value:
+            status: error
+            warning: 'request_preparation_failed: 인자와 도구 설정을 정리하는 단계가 실패했다. 다시 부르지
+              말고 관리자에게 알린다'
+        - key: name
+          type: string
+          value: ''
+        - key: class_iri
+          type: string
+          value: ''
+        - key: repos_url
+          type: string
+          value: ''
+        - key: exact_url
+          type: string
+          value: ''
+        - key: contains_url
+          type: string
+          value: ''
+        - key: iri_url
+          type: string
+          value: ''
+        desc: 이름과 class_iri 를 검사하고 label 검색 SPARQL 3건을 GET 주소로 만든다
+        error_strategy: default-value
+        outputs:
+          base_url:
+            children: null
+            type: string
+          class_iri:
+            children: null
+            type: string
+          contains_url:
+            children: null
+            type: string
+          exact_url:
+            children: null
+            type: string
+          iri_url:
+            children: null
+            type: string
+          name:
+            children: null
+            type: string
+          repos_url:
+            children: null
+            type: string
+          repository:
+            children: null
+            type: string
+          route:
+            children: null
+            type: string
+          stop_payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 인자 정리와 요청 조립
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - repository
+          variable: repository_arg
+        - value_selector:
+          - start
+          - name
+          variable: name
+        - value_selector:
+          - start
+          - class_iri
+          variable: class_iri
+        - value_selector:
+          - env
+          - SOR_BASE_URL
+          variable: base
+        - value_selector:
+          - env
+          - SOR_USERNAME
+          variable: username
+        - value_selector:
+          - env
+          - SOR_REPOSITORY
+          variable: default_repo
+        - value_selector:
+          - env
+          - SOR_INCLUDE_INFERRED
+          variable: inferred
+        - value_selector:
+          - env
+          - SOR_INCLUDE_FEDERATION
+          variable: federation
+        - value_selector:
+          - env
+          - SOR_TIMEOUT_MS
+          variable: timeout_ms
+      dimensions:
+        height: 100
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: prep
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.800018310546875
+        target:
+        - height: 8
+          id: target
+          nodeId: prep
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.800018310546875
+      id: prep
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 840
+        y: 140
+        z: 0
+      data:
+        cases:
+        - case_id: go
+          conditions:
+          - comparison_operator: is
+            id: dd852728-a7fb-870d-5184-6dcf4bdf5712
+            value: go
+            varType: string
+            variable_selector:
+            - prep
+            - route
+          logical_operator: and
+        desc: 설정과 인자가 갖춰졌을 때만 로그인으로 보낸다. 아니면 호출 없이 merge 로 간다
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 호출 전 점검
+        type: if-else
+      dimensions:
+        height: 149
+        width: 342
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: go
+          nodeId: gate_pre
+          position: right
+          type: source
+          width: 8
+          x: 338.800048828125
+          y: 57.800018310546875
+        - height: 8
+          id: 'false'
+          nodeId: gate_pre
+          position: right
+          type: source
+          width: 8
+          x: 338.800048828125
+          y: 123.39999389648438
+        target:
+        - height: 8
+          id: target
+          nodeId: gate_pre
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.800018310546875
+      id: gate_pre
+      initialized: false
+      isParent: false
+      position:
+        x: 840
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 140
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"username": "{{#env.SOR_USERNAME#}}", "password": "{{#env.SOR_PASSWORD#}}"}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: POST /api/v1/auth/login 에 조회 계정을 JSON 으로 보내 token 을 받는다. 실패하면 status
+          0 으로 이어진다
+        error_strategy: default-value
+        headers: Content-Type:application/json
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        timeout:
+          connect: 10
+          read: 30
+          write: 10
+        title: 로그인
+        type: http-request
+        url: '{{#prep.base_url#}}/api/v1/auth/login'
+        variables: []
+      dimensions:
+        height: 139
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: login
+          position: right
+          type: source
+          width: 8
+          x: 277.2000732421875
+          y: 22.800018310546875
+        target:
+        - height: 8
+          id: target
+          nodeId: login
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.800018310546875
+      id: login
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1323.7321319661473
+        y: 345.3045189451909
+        z: 0
+      data:
+        code: "\ndef _txt(value):\n    \"\"\"None 과 숫자를 포함해 무엇이 오든 문자열로 만든다.\"\"\"\
+          \n    return \"\" if value is None else str(value)\n\n\ndef _cut(text, limit):\n\
+          \    body = _txt(text)\n    return body if len(body) <= limit else body[:limit]\n\
+          \n\ndef _one_line(text, limit):\n    \"\"\"줄바꿈과 연속 공백을 한 칸으로 줄이고 limit 자에서\
+          \ 자른다.\"\"\"\n    return _cut(\" \".join(_txt(text).split()), limit)\n\n\
+          \ndef _local_name(iri):\n    \"\"\"IRI 의 마지막 #, /, : 뒤 이름. 없으면 원문.\"\"\"\
+          \n    text = _txt(iri).strip()\n    cut = max(text.rfind(\"#\"), text.rfind(\"\
+          /\"), text.rfind(\":\"))\n    tail = text[cut + 1:] if cut >= 0 else text\n\
+          \    return tail or text\n\n\ndef _list_of(value):\n    \"\"\"dict 원소만 남긴\
+          \ 목록. 목록이 아니면 빈 목록.\"\"\"\n    if not isinstance(value, list):\n       \
+          \ return []\n    return [item for item in value if isinstance(item, dict)]\n\
+          \n\ndef _term_of(statement, key):\n    \"\"\"statement 의 subject, predicate,\
+          \ object term. dict 가 아니면 빈 dict.\"\"\"\n    value = statement.get(key)\
+          \ if isinstance(statement, dict) else None\n    return value if isinstance(value,\
+          \ dict) else {}\n\n\n# default-value 를 건 노드가 실패하면 원인과 무관하게 status 0 과 빈\
+          \ body 가 온다. 그래서 warning 은 원인을\n# 단정하지 않고 실패 사실만 적는다(login_failed, <대상>_request_failed).\n\
+          FAILED_REQUEST_REASON = (\"요청이 실패했다. 서버 접속 실패, 권한 거절, timeout, 4xx, 5xx\
+          \ 는 실패 시 기본값(status 0)으로 \"\n                         \"바뀌어 이 도구가 구분하지 못하며,\
+          \ 구분은 워크플로 실행 기록의 오류 원문으로 한다\")\nADMIN_HINT = \". 다시 부르지 말고 관리자에게 계정 설정과\
+          \ 서버 상태 확인이 필요하다고 답한다\"\n\n\ndef _status(status_code):\n    try:\n     \
+          \   return int(float(_txt(status_code).strip() or \"0\"))\n    except Exception:\n\
+          \        return 0\n\n\ndef _header(headers, name):\n    \"\"\"응답 header\
+          \ 를 대소문자 구분 없이 찾는다. 없으면 빈 문자열.\"\"\"\n    if not isinstance(headers, dict):\n\
+          \        return \"\"\n    want = name.lower()\n    for key, value in headers.items():\n\
+          \        if _txt(key).strip().lower() == want:\n            return _txt(value).strip()\n\
+          \    return \"\"\n\n\ndef _server_message(body, limit, headers=None):\n\
+          \    \"\"\"서버 오류 본문 {timestamp, status, error, message, code, correlationId}\
+          \ 에서 message 와\n    correlationId 를 꺼낸다. JSON 이 아니면 본문 원문을 한 줄로 줄여 쓴다.\"\
+          \"\"\n    import json\n    raw = _txt(body)\n    data = None\n    if raw.strip().startswith(\"\
+          {\"):\n        try:\n            data = json.loads(raw)\n        except\
+          \ Exception:\n            data = None\n    message = \"\"\n    correlation\
+          \ = \"\"\n    if isinstance(data, dict):\n        message = _txt(data.get(\"\
+          message\")).strip() or _txt(data.get(\"error\")).strip()\n        correlation\
+          \ = _txt(data.get(\"correlationId\")).strip()\n    if not message:\n   \
+          \     message = raw\n    text = _one_line(message, limit)\n    if not correlation:\n\
+          \        correlation = _header(headers, \"x-correlation-id\")\n    if correlation:\n\
+          \        text = text + \" (correlationId \" + correlation + \")\"\n    return\
+          \ text\n\n\ndef _json_body(status_code, body):\n    \"\"\"조회 노드의 응답을 JSON\
+          \ 객체로 읽는다. (객체 또는 None, 실패 사유).\"\"\"\n    import json\n    code = _status(status_code)\n\
+          \    if code == 0:\n        return None, FAILED_REQUEST_REASON\n    if code\
+          \ != 200:\n        return None, \"http_\" + str(code) + \": \" + _server_message(body,\
+          \ 200)\n    try:\n        data = json.loads(_txt(body))\n    except Exception:\n\
+          \        return None, \"응답이 JSON 이 아니다\"\n    if not isinstance(data, dict):\n\
+          \        return None, \"응답 형식이 예상과 다르다\"\n    return data, \"\"\n\n\ndef\
+          \ main(status_code, body, repository):\n    \"\"\"로그인 응답에서 token 을 꺼내고 다음\
+          \ 갈래(ready, no_repo, fail)를 정한다.\"\"\"\n    import json\n    NEEDS_REPOSITORY\
+          \ = True\n    code = _status(status_code)\n    repo = _txt(repository).strip()\n\
+          \n    def fail(warning):\n        return {\"token\": \"\", \"route\": \"\
+          fail\",\n                \"fail_payload\": {\"status\": \"error\", \"repository\"\
+          : repo, \"repository_candidates\": [],\n                               \
+          \  \"warning\": warning}}\n\n    if code == 0:\n        # default-value\
+          \ 때문에 401, 403 과 접속 실패가 모두 status 0 이다. 원인을 단정하지 않는다.\n        return fail(\"\
+          login_failed: 로그인 요청이 실패했다. 서버 접속 실패 또는 계정 인증 실패이며, 구분은 \"\n           \
+          \         \"워크플로 실행 기록의 오류 원문으로 한다\" + ADMIN_HINT)\n    if code != 200:\n\
+          \        # login 노드의 오류 전략을 빼면 이 갈래로 온다. 받은 status 와 서버 message 를 그대로 싣는다.\n\
+          \        return fail(\"login_failed: 로그인 요청이 http_\" + str(code) + \" 로\
+          \ 끝났다(\"\n                    + _server_message(body, 200) + \")\" + ADMIN_HINT)\n\
+          \    data = None\n    try:\n        data = json.loads(_txt(body))\n    except\
+          \ Exception:\n        data = None\n    token = _txt(data.get(\"token\")).strip()\
+          \ if isinstance(data, dict) else \"\"\n    if not token:\n        return\
+          \ fail(\"login_failed: 로그인 응답에 token 이 없다\" + ADMIN_HINT)\n    if NEEDS_REPOSITORY\
+          \ and not repo:\n        return {\"token\": token, \"route\": \"no_repo\"\
+          , \"fail_payload\": {}}\n    return {\"token\": token, \"route\": \"ready\"\
+          , \"fail_payload\": {}}\n"
+        code_language: python3
+        default_value:
+        - key: token
+          type: string
+          value: ''
+        - key: route
+          type: string
+          value: fail
+        - key: fail_payload
+          type: object
+          value:
+            status: error
+            warning: 'login_failed: 로그인 응답을 처리하는 단계가 실패했다. 다시 부르지 말고 관리자에게 계정 설정과
+              서버 상태 확인이 필요하다고 답한다'
+        desc: 로그인 응답에서 token 을 꺼낸다. token 이 있으면 ready, repository 가 비었으면 no_repo,
+          없으면 fail 과 오류 payload 를 낸다
+        error_strategy: default-value
+        outputs:
+          fail_payload:
+            children: null
+            type: object
+          route:
+            children: null
+            type: string
+          token:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: token 확인
+        type: code
+        variables:
+        - value_selector:
+          - login
+          - status_code
+          variable: status_code
+        - value_selector:
+          - login
+          - body
+          variable: body
+        - value_selector:
+          - prep
+          - repository
+          variable: repository
+      dimensions:
+        height: 100
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: auth
+          position: right
+          type: source
+          width: 8
+          x: 277.1998291015625
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: auth
+          position: left
+          type: target
+          width: 8
+          x: -5.2000732421875
+          y: 22.79998779296875
+      id: auth
+      initialized: false
+      isParent: false
+      position:
+        x: 1323.7321319661473
+        y: 345.3045189451909
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 843.7321319661472
+        y: 345.3045189451909
+        z: 0
+      data:
+        cases:
+        - case_id: ready
+          conditions:
+          - comparison_operator: is
+            id: 138c189d-1f4c-a93b-488c-0003328e09f8
+            value: ready
+            varType: string
+            variable_selector:
+            - auth
+            - route
+          logical_operator: and
+        - case_id: no_repo
+          conditions:
+          - comparison_operator: is
+            id: c29b70a1-6948-6ed4-ddac-878084c9a736
+            value: no_repo
+            varType: string
+            variable_selector:
+            - auth
+            - route
+          logical_operator: and
+        desc: ready 면 조회 노드 전부를 나란히 보낸다. no_repo 면 repository 목록 조회만 보낸다. 그 밖이면 인증
+          실패 응답으로 merge 에 간다
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 인증과 repository 확인
+        type: if-else
+      dimensions:
+        height: 215
+        width: 322
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: ready
+          nodeId: gate_auth
+          position: right
+          type: source
+          width: 8
+          x: 319.52508544921875
+          y: 57.79998779296875
+        - height: 8
+          id: no_repo
+          nodeId: gate_auth
+          position: right
+          type: source
+          width: 8
+          x: 319.52508544921875
+          y: 123.4000244140625
+        - height: 8
+          id: 'false'
+          nodeId: gate_auth
+          position: right
+          type: source
+          width: 8
+          x: 319.52508544921875
+          y: 189
+        target:
+        - height: 8
+          id: target
+          nodeId: gate_auth
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.79998779296875
+      id: gate_auth
+      initialized: false
+      isParent: false
+      position:
+        x: 843.7321319661472
+        y: 345.3045189451909
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 463.7321319661472
+        y: 345.3045189451909
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: '갈래 1: GET /api/v1/sparql/repositories. repository 대조용 canQuery'
+        error_strategy: default-value
+        headers: 'Authorization:Bearer {{#auth.token#}}
+
+          Accept:application/json'
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        timeout:
+          connect: 10
+          read: 60
+          write: 10
+        title: repository 목록
+        type: http-request
+        url: '{{#prep.repos_url#}}'
+        variables: []
+      dimensions:
+        height: 139
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: q_repos
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: q_repos
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.79998779296875
+      id: q_repos
+      initialized: false
+      isParent: false
+      position:
+        x: 463.7321319661472
+        y: 345.3045189451909
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 463.7321319661472
+        y: 634.3045189451909
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: '갈래 2: rdfs:label, skos:prefLabel, skos:altLabel 에서 이름 원문, @ko, @en
+          과 같은 값'
+        error_strategy: default-value
+        headers: 'Authorization:Bearer {{#auth.token#}}
+
+          Accept:application/sparql-results+json'
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        timeout:
+          connect: 10
+          read: 120
+          write: 10
+        title: 1단 label 정확 일치
+        type: http-request
+        url: '{{#prep.exact_url#}}'
+        variables: []
+      dimensions:
+        height: 139
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: q_exact
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: q_exact
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.79998779296875
+      id: q_exact
+      initialized: false
+      isParent: false
+      position:
+        x: 463.7321319661472
+        y: 634.3045189451909
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 463.7321319661472
+        y: 923.3045189451909
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: '갈래 3: label 에 이름이 든 값(LCASE CONTAINS). timeout 10초 이하'
+        error_strategy: default-value
+        headers: 'Authorization:Bearer {{#auth.token#}}
+
+          Accept:application/sparql-results+json'
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        timeout:
+          connect: 10
+          read: 120
+          write: 10
+        title: 2단 label 포함
+        type: http-request
+        url: '{{#prep.contains_url#}}'
+        variables: []
+      dimensions:
+        height: 139
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: q_contains
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.7999267578125
+        target:
+        - height: 8
+          id: target
+          nodeId: q_contains
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.7999267578125
+      id: q_contains
+      initialized: false
+      isParent: false
+      position:
+        x: 463.7321319661472
+        y: 923.3045189451909
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 463.7321319661472
+        y: 1212.304518945191
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: '갈래 4: IRI 가 /이름, #이름, :이름 으로 끝나는 typed 자원. timeout 10초 이하'
+        error_strategy: default-value
+        headers: 'Authorization:Bearer {{#auth.token#}}
+
+          Accept:application/sparql-results+json'
+        method: get
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        timeout:
+          connect: 10
+          read: 120
+          write: 10
+        title: 3단 IRI 끝 이름
+        type: http-request
+        url: '{{#prep.iri_url#}}'
+        variables: []
+      dimensions:
+        height: 139
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: q_iri
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.7999267578125
+        target:
+        - height: 8
+          id: target
+          nodeId: q_iri
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.7999267578125
+      id: q_iri
+      initialized: false
+      isParent: false
+      position:
+        x: 463.7321319661472
+        y: 1212.304518945191
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 83.73213196614722
+        y: 779.3045189451909
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data: []
+          type: none
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: 조회 노드가 모두 끝난 뒤(AND-join) POST /api/v1/auth/logout 을 한 번 불러 token 을 폐기한다
+        error_strategy: default-value
+        headers: Authorization:Bearer {{#auth.token#}}
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        timeout:
+          connect: 10
+          read: 30
+          write: 10
+        title: 로그아웃
+        type: http-request
+        url: '{{#prep.base_url#}}/api/v1/auth/logout'
+        variables: []
+      dimensions:
+        height: 139
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: logout
+          position: right
+          type: source
+          width: 8
+          x: 277.1999969482422
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: logout
+          position: left
+          type: target
+          width: 8
+          x: -5.1999969482421875
+          y: 22.79998779296875
+      id: logout
+      initialized: false
+      isParent: false
+      position:
+        x: 83.73213196614722
+        y: 779.3045189451909
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 957.0510120445992
+        y: 924.9676183589474
+        z: 0
+      data:
+        code: "\ndef _txt(value):\n    \"\"\"None 과 숫자를 포함해 무엇이 오든 문자열로 만든다.\"\"\"\
+          \n    return \"\" if value is None else str(value)\n\n\ndef _cut(text, limit):\n\
+          \    body = _txt(text)\n    return body if len(body) <= limit else body[:limit]\n\
+          \n\ndef _one_line(text, limit):\n    \"\"\"줄바꿈과 연속 공백을 한 칸으로 줄이고 limit 자에서\
+          \ 자른다.\"\"\"\n    return _cut(\" \".join(_txt(text).split()), limit)\n\n\
+          \ndef _local_name(iri):\n    \"\"\"IRI 의 마지막 #, /, : 뒤 이름. 없으면 원문.\"\"\"\
+          \n    text = _txt(iri).strip()\n    cut = max(text.rfind(\"#\"), text.rfind(\"\
+          /\"), text.rfind(\":\"))\n    tail = text[cut + 1:] if cut >= 0 else text\n\
+          \    return tail or text\n\n\ndef _list_of(value):\n    \"\"\"dict 원소만 남긴\
+          \ 목록. 목록이 아니면 빈 목록.\"\"\"\n    if not isinstance(value, list):\n       \
+          \ return []\n    return [item for item in value if isinstance(item, dict)]\n\
+          \n\ndef _term_of(statement, key):\n    \"\"\"statement 의 subject, predicate,\
+          \ object term. dict 가 아니면 빈 dict.\"\"\"\n    value = statement.get(key)\
+          \ if isinstance(statement, dict) else None\n    return value if isinstance(value,\
+          \ dict) else {}\n\n\n# default-value 를 건 노드가 실패하면 원인과 무관하게 status 0 과 빈\
+          \ body 가 온다. 그래서 warning 은 원인을\n# 단정하지 않고 실패 사실만 적는다(login_failed, <대상>_request_failed).\n\
+          FAILED_REQUEST_REASON = (\"요청이 실패했다. 서버 접속 실패, 권한 거절, timeout, 4xx, 5xx\
+          \ 는 실패 시 기본값(status 0)으로 \"\n                         \"바뀌어 이 도구가 구분하지 못하며,\
+          \ 구분은 워크플로 실행 기록의 오류 원문으로 한다\")\nADMIN_HINT = \". 다시 부르지 말고 관리자에게 계정 설정과\
+          \ 서버 상태 확인이 필요하다고 답한다\"\n\n\ndef _status(status_code):\n    try:\n     \
+          \   return int(float(_txt(status_code).strip() or \"0\"))\n    except Exception:\n\
+          \        return 0\n\n\ndef _header(headers, name):\n    \"\"\"응답 header\
+          \ 를 대소문자 구분 없이 찾는다. 없으면 빈 문자열.\"\"\"\n    if not isinstance(headers, dict):\n\
+          \        return \"\"\n    want = name.lower()\n    for key, value in headers.items():\n\
+          \        if _txt(key).strip().lower() == want:\n            return _txt(value).strip()\n\
+          \    return \"\"\n\n\ndef _server_message(body, limit, headers=None):\n\
+          \    \"\"\"서버 오류 본문 {timestamp, status, error, message, code, correlationId}\
+          \ 에서 message 와\n    correlationId 를 꺼낸다. JSON 이 아니면 본문 원문을 한 줄로 줄여 쓴다.\"\
+          \"\"\n    import json\n    raw = _txt(body)\n    data = None\n    if raw.strip().startswith(\"\
+          {\"):\n        try:\n            data = json.loads(raw)\n        except\
+          \ Exception:\n            data = None\n    message = \"\"\n    correlation\
+          \ = \"\"\n    if isinstance(data, dict):\n        message = _txt(data.get(\"\
+          message\")).strip() or _txt(data.get(\"error\")).strip()\n        correlation\
+          \ = _txt(data.get(\"correlationId\")).strip()\n    if not message:\n   \
+          \     message = raw\n    text = _one_line(message, limit)\n    if not correlation:\n\
+          \        correlation = _header(headers, \"x-correlation-id\")\n    if correlation:\n\
+          \        text = text + \" (correlationId \" + correlation + \")\"\n    return\
+          \ text\n\n\ndef _json_body(status_code, body):\n    \"\"\"조회 노드의 응답을 JSON\
+          \ 객체로 읽는다. (객체 또는 None, 실패 사유).\"\"\"\n    import json\n    code = _status(status_code)\n\
+          \    if code == 0:\n        return None, FAILED_REQUEST_REASON\n    if code\
+          \ != 200:\n        return None, \"http_\" + str(code) + \": \" + _server_message(body,\
+          \ 200)\n    try:\n        data = json.loads(_txt(body))\n    except Exception:\n\
+          \        return None, \"응답이 JSON 이 아니다\"\n    if not isinstance(data, dict):\n\
+          \        return None, \"응답 형식이 예상과 다르다\"\n    return data, \"\"\n\n\ndef\
+          \ _repo_gate(repository, status_code, body):\n    \"\"\"조회 권한 목록(GET /api/v1/sparql/repositories)으로\
+          \ 대상 repository 를 대조한다.\n\n    (중단 payload 또는 None, 조회 가능 ID 목록, warning).\
+          \ 중단 payload 가 있으면 그대로 응답으로 쓴다.\n    목록 요청이 실패했고 repository 가 있으면 대조를 건너뛰고\
+          \ warning 만 남긴다.\"\"\"\n    repo = _txt(repository).strip()\n    data, reason\
+          \ = _json_body(status_code, body)\n    if data is None:\n        if not\
+          \ repo:\n            return ({\"status\": \"error\", \"repository\": \"\"\
+          , \"repository_candidates\": [],\n                     \"warning\": (\"\
+          repository_required: repository 인자와 도구 설정의 기본 repository 가 \"\n        \
+          \                         \"모두 비었다. kg_list_repositories 로 목록을 확인한 뒤 repository\
+          \ 를 넣어 \"\n                                 \"다시 부른다; repository_list_request_failed:\
+          \ repository 목록 요청이 실패해 \"\n                                 \"후보를 담지 못했다(\"\
+          \ + reason + \")\")},\n                    [], \"\")\n        return None,\
+          \ [], (\"repository_list_request_failed: repository 목록 요청이 실패해 대조를 건너뛰었다(\"\
+          \n                          + reason + \")\")\n    listed = []\n    queryable\
+          \ = []\n    for entry in _list_of(data.get(\"repositories\")):\n       \
+          \ rid = _txt(entry.get(\"id\")).strip()\n        if not rid:\n         \
+          \   continue\n        if rid not in listed:\n            listed.append(rid)\n\
+          \        if entry.get(\"canQuery\") is True and rid not in queryable:\n\
+          \            queryable.append(rid)\n    if not repo:\n        return ({\"\
+          status\": \"error\", \"repository\": \"\", \"repository_candidates\": queryable,\n\
+          \                 \"warning\": (\"repository_required: repository 인자와 도구\
+          \ 설정의 기본 repository 가 모두 \"\n                             \"비었다. repository_candidates\
+          \ 에서 골라 repository 에 넣어 다시 부른다\")},\n                queryable, \"\")\n\
+          \    if repo not in listed:\n        return ({\"status\": \"repository_not_found\"\
+          , \"repository\": repo, \"repository_candidates\": queryable,\n        \
+          \         \"warning\": (\"repository_not_found: \" + repo + \" 는 이 계정이 볼\
+          \ 수 있는 repository 목록에 \"\n                             \"없다. repository_candidates\
+          \ 에서 골라 다시 부른다\")},\n                queryable, \"\")\n    if repo not in\
+          \ queryable:\n        return ({\"status\": \"repository_not_found\", \"\
+          repository\": repo, \"repository_candidates\": queryable,\n            \
+          \     \"warning\": (\"repository_not_queryable: \" + repo + \" 는 이 계정에 조회\
+          \ 권한이 없다\"\n                             \"(canQuery false). repository_candidates\
+          \ 에서 골라 다시 부른다\")},\n                queryable, \"\")\n    return None,\
+          \ queryable, \"\"\n\n\nXSD_NS = \"http://www.w3.org/2001/XMLSchema#\"\n\
+          PLAIN_DATATYPES = ['http://www.w3.org/2001/XMLSchema#string', 'http://www.w3.org/2001/XMLSchema#integer',\
+          \ 'http://www.w3.org/2001/XMLSchema#int', 'http://www.w3.org/2001/XMLSchema#long',\
+          \ 'http://www.w3.org/2001/XMLSchema#decimal', 'http://www.w3.org/2001/XMLSchema#double',\
+          \ 'http://www.w3.org/2001/XMLSchema#float', 'http://www.w3.org/2001/XMLSchema#boolean',\
+          \ 'http://www.w3.org/1999/02/22-rdf-syntax-ns#langString']\n\n\ndef _xml_unescape(text):\n\
+          \    \"\"\"XML 문자 참조 5종과 숫자 참조를 되돌린다.\"\"\"\n    import re\n    out = _txt(text)\n\
+          \    out = re.sub(r\"&#x([0-9A-Fa-f]+);\", lambda m: chr(int(m.group(1),\
+          \ 16)), out)\n    out = re.sub(r\"&#([0-9]+);\", lambda m: chr(int(m.group(1))),\
+          \ out)\n    for src, dst in ((\"&lt;\", \"<\"), (\"&gt;\", \">\"), (\"&quot;\"\
+          , '\"'), (\"&apos;\", \"'\"), (\"&amp;\", \"&\")):\n        out = out.replace(src,\
+          \ dst)\n    return out\n\n\ndef _sparql_xml(raw):\n    \"\"\"SPARQL Query\
+          \ Results XML 을 JSON 형식과 같은 dict 로 읽는다. 읽지 못하면 None.\n\n    서버가 Accept 를\
+          \ 따르지 않고 XML 을 줄 때를 대비한다(v1 SOR 5.x 실측).\"\"\"\n    import re\n    if \"\
+          <sparql\" not in raw:\n        return None\n    variables = [_xml_unescape(v)\
+          \ for v in re.findall(r\"<variable\\s+name=\\\"([^\\\"]*)\\\"\", raw)]\n\
+          \    ask = re.search(r\"<boolean>\\s*(true|false)\\s*</boolean>\", raw)\n\
+          \    if ask is not None:\n        return {\"head\": {\"vars\": variables},\
+          \ \"boolean\": ask.group(1) == \"true\"}\n    if \"<results\" not in raw:\n\
+          \        return None\n    bindings = []\n    cell_re = re.compile(\n   \
+          \     r\"<binding\\s+name=\\\"([^\\\"]*)\\\"\\s*>\\s*(?:<uri>(.*?)</uri>|<bnode>(.*?)</bnode>\"\
+          \n        r\"|<literal((?:\\s+[A-Za-z:]+=\\\"[^\\\"]*\\\")*)\\s*(?:/>|>(.*?)</literal>))\\\
+          s*</binding>\", re.S)\n    for block in re.findall(r\"<result>(.*?)</result>\"\
+          , raw, re.S):\n        row = {}\n        for name, uri, bnode, attrs, literal\
+          \ in cell_re.findall(block):\n            key = _xml_unescape(name)\n  \
+          \          if uri:\n                row[key] = {\"type\": \"uri\", \"value\"\
+          : _xml_unescape(uri.strip())}\n            elif bnode:\n               \
+          \ row[key] = {\"type\": \"bnode\", \"value\": _xml_unescape(bnode.strip())}\n\
+          \            else:\n                cell = {\"type\": \"literal\", \"value\"\
+          : _xml_unescape(literal)}\n                lang = re.search(r\"xml:lang=\\\
+          \"([^\\\"]*)\\\"\", attrs)\n                if lang is not None:\n     \
+          \               cell[\"xml:lang\"] = _xml_unescape(lang.group(1))\n    \
+          \            datatype = re.search(r\"datatype=\\\"([^\\\"]*)\\\"\", attrs)\n\
+          \                if datatype is not None:\n                    cell[\"datatype\"\
+          ] = _xml_unescape(datatype.group(1))\n                row[key] = cell\n\
+          \        bindings.append(row)\n    return {\"head\": {\"vars\": variables},\
+          \ \"results\": {\"bindings\": bindings}}\n\n\ndef _sparql_doc(body):\n \
+          \   \"\"\"SPARQL 결과 본문을 JSON 형식 dict 로 읽는다. JSON 을 먼저, XML 을 다음으로 읽는다. 못\
+          \ 읽으면 None.\"\"\"\n    import json\n    raw = _txt(body).strip()\n    if\
+          \ not raw:\n        return None\n    doc = None\n    if raw.startswith(\"\
+          {\"):\n        try:\n            doc = json.loads(raw)\n        except Exception:\n\
+          \            doc = None\n    if not isinstance(doc, dict):\n        doc\
+          \ = _sparql_xml(raw)\n    return doc if isinstance(doc, dict) else None\n\
+          \n\ndef _cell(cell):\n    \"\"\"결과 한 칸을 문자열로 만든다. 언어 태그는 값@ko, 기본 외 datatype\
+          \ 은 값^^xsd:date 처럼 붙인다.\"\"\"\n    if not isinstance(cell, dict):\n    \
+          \    return \"\"\n    kind = _txt(cell.get(\"type\"))\n    value = _txt(cell.get(\"\
+          value\"))\n    if kind == \"bnode\":\n        return \"_:\" + value\n  \
+          \  if kind in (\"literal\", \"typed-literal\"):\n        lang = _txt(cell.get(\"\
+          xml:lang\"))\n        if lang:\n            return value + \"@\" + lang\n\
+          \        datatype = _txt(cell.get(\"datatype\"))\n        if datatype and\
+          \ datatype not in PLAIN_DATATYPES:\n            if datatype.startswith(XSD_NS):\n\
+          \                return value + \"^^xsd:\" + datatype[len(XSD_NS):]\n  \
+          \          return value + \"^^<\" + datatype + \">\"\n    return value\n\
+          \n\ndef _sparql_rows(status_code, body):\n    \"\"\"default-value 조회 노드의\
+          \ SELECT 결과를 (binding 목록 또는 None, 실패 사유) 로 읽는다.\"\"\"\n    code = _status(status_code)\n\
+          \    if code == 0:\n        return None, FAILED_REQUEST_REASON\n    if code\
+          \ != 200:\n        return None, \"http_\" + str(code) + \": \" + _server_message(body,\
+          \ 200)\n    doc = _sparql_doc(body)\n    if doc is None:\n        return\
+          \ None, \"응답을 SPARQL 결과로 읽지 못했다\"\n    results = doc.get(\"results\")\n\
+          \    if not isinstance(results, dict) or not isinstance(results.get(\"bindings\"\
+          ), list):\n        return [], \"\"\n    return [b for b in results[\"bindings\"\
+          ] if isinstance(b, dict)], \"\"\n\n\ndef main(repos_body, repos_code, exact_body,\
+          \ exact_code, contains_body, contains_code,\n         iri_body, iri_code,\
+          \ repository, name):\n    \"\"\"세 단계 결과를 exact, contains, iri 순으로 합쳐 후보를\
+          \ 만든다. IRI 가 겹치면 앞의 것만 남긴다.\"\"\"\n    LIMIT = 20\n    TYPE_LIMIT = 10\n\
+          \    GENERIC_TYPES = ['http://www.w3.org/2002/07/owl#Thing', 'http://www.w3.org/2000/01/rdf-schema#Resource',\
+          \ 'http://www.w3.org/2002/07/owl#NamedIndividual']\n    repo = _txt(repository).strip()\n\
+          \    stop, _queryable, check_warning = _repo_gate(repo, repos_code, repos_body)\n\
+          \    if stop is not None:\n        stop[\"candidates\"] = []\n        stop[\"\
+          candidate_count\"] = 0\n        return {\"payload\": stop}\n    warnings\
+          \ = [check_warning] if check_warning else []\n    stages = ((\"exact\",\
+          \ exact_code, exact_body, \"exact_search_request_failed\", \"정확 일치 검색\"\
+          ),\n              (\"contains\", contains_code, contains_body, \"contains_search_request_failed\"\
+          , \"포함 검색\"),\n              (\"iri\", iri_code, iri_body, \"iri_search_request_failed\"\
+          , \"IRI 끝 이름 검색\"))\n    candidates = []\n    seen = set()\n    failed =\
+          \ 0\n    overflow = False\n    for match, code, body, tag, title in stages:\n\
+          \        rows, reason = _sparql_rows(code, body)\n        if rows is None:\n\
+          \            failed += 1\n            warnings.append(tag + \": \" + title\
+          \ + \" 요청이 실패했다(\" + reason + \")\")\n            continue\n        if len(rows)\
+          \ > LIMIT:\n            overflow = True\n        for row in rows:\n    \
+          \        subject = row.get(\"s\")\n            if not isinstance(subject,\
+          \ dict) or _txt(subject.get(\"type\")) != \"uri\":\n                continue\n\
+          \            iri = _txt(subject.get(\"value\")).strip()\n            if\
+          \ not iri or iri in seen:\n                continue\n            seen.add(iri)\n\
+          \            label_cell = row.get(\"label\")\n            label = _txt(label_cell.get(\"\
+          value\")) if isinstance(label_cell, dict) else \"\"\n            types_cell\
+          \ = row.get(\"types\")\n            types = []\n            for type_iri\
+          \ in (_txt(types_cell.get(\"value\")).split() if isinstance(types_cell,\
+          \ dict) else []):\n                if type_iri not in types and type_iri\
+          \ not in GENERIC_TYPES:\n                    types.append(type_iri)\n  \
+          \          candidates.append({\"iri\": iri, \"label\": label or _local_name(iri),\
+          \ \"match\": match,\n                               \"types\": types[:TYPE_LIMIT]})\n\
+          \    if failed == len(stages):\n        return {\"payload\": {\"status\"\
+          : \"error\", \"repository\": repo, \"repository_candidates\": [],\n    \
+          \                        \"candidates\": [], \"candidate_count\": 0,\n \
+          \                           \"warning\": \"; \".join(warnings) + ADMIN_HINT}}\n\
+          \    if len(candidates) > LIMIT:\n        overflow = True\n        candidates\
+          \ = candidates[:LIMIT]\n    if overflow:\n        warnings.append(\"too_many_matches:\
+          \ 후보가 \" + str(LIMIT) + \"건을 넘어 잘렸다. 이름을 길게 하거나 \"\n                   \
+          \     \"class_iri 로 좁혀 다시 부른다\")\n    if candidates:\n        status = \"\
+          success\"\n    elif failed:\n        status = \"no_results\"\n        warnings.append(\"\
+          result_incomplete: 성공한 검색에서는 \" + _txt(name) + \" 에 맞는 후보가 없지만 검색 요청 \"\n\
+          \                        \"일부가 실패해 없다고 단정할 수 없다. 이름을 길게 하거나 class_iri 로\
+          \ 좁혀 한 번만 더 \"\n                        \"부르고, 같으면 관리자에게 계정 설정과 서버 상태 확인이\
+          \ 필요하다고 답한다\")\n    else:\n        status = \"no_results\"\n        warnings.append(\"\
+          no_results: \" + _txt(name) + \" 에 맞는 label 과 IRI 가 없다. 핵심 낱말로 줄이거나 \"\n\
+          \                        \"class_iri 를 비워 한 번만 더 부르고, 그래도 없으면 찾지 못했다고 답한다\"\
+          )\n    return {\"payload\": {\"status\": status, \"repository\": repo, \"\
+          repository_candidates\": [],\n                        \"candidates\": candidates,\
+          \ \"candidate_count\": len(candidates),\n                        \"warning\"\
+          : \"; \".join(w for w in warnings if w)}}\n"
+        code_language: python3
+        default_value:
+        - key: payload
+          type: object
+          value:
+            status: error
+            warning: 'response_processing_failed: 서버 응답을 정리하는 단계가 실패했다. 다시 부르지 말고
+              관리자에게 알린다'
+        desc: repository 를 대조한 뒤 exact, contains, iri 순으로 후보를 합쳐 20건까지 담는다
+        error_strategy: default-value
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 정리
+        type: code
+        variables:
+        - value_selector:
+          - q_repos
+          - body
+          variable: repos_body
+        - value_selector:
+          - q_repos
+          - status_code
+          variable: repos_code
+        - value_selector:
+          - q_exact
+          - body
+          variable: exact_body
+        - value_selector:
+          - q_exact
+          - status_code
+          variable: exact_code
+        - value_selector:
+          - q_contains
+          - body
+          variable: contains_body
+        - value_selector:
+          - q_contains
+          - status_code
+          variable: contains_code
+        - value_selector:
+          - q_iri
+          - body
+          variable: iri_body
+        - value_selector:
+          - q_iri
+          - status_code
+          variable: iri_code
+        - value_selector:
+          - prep
+          - repository
+          variable: repository
+        - value_selector:
+          - prep
+          - name
+          variable: name
+      dimensions:
+        height: 100
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: assemble
+          position: right
+          type: source
+          width: 8
+          x: 277.199951171875
+          y: 22.7999267578125
+        target:
+        - height: 8
+          id: target
+          nodeId: assemble
+          position: left
+          type: target
+          width: 8
+          x: -5.2000732421875
+          y: 22.7999267578125
+      id: assemble
+      initialized: false
+      isParent: false
+      position:
+        x: 957.0510120445992
+        y: 924.9676183589474
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1337.0510120445992
+        y: 924.9676183589474
+        z: 0
+      data:
+        code: "\ndef _txt(value):\n    \"\"\"None 과 숫자를 포함해 무엇이 오든 문자열로 만든다.\"\"\"\
+          \n    return \"\" if value is None else str(value)\n\n\ndef _cut(text, limit):\n\
+          \    body = _txt(text)\n    return body if len(body) <= limit else body[:limit]\n\
+          \n\ndef _one_line(text, limit):\n    \"\"\"줄바꿈과 연속 공백을 한 칸으로 줄이고 limit 자에서\
+          \ 자른다.\"\"\"\n    return _cut(\" \".join(_txt(text).split()), limit)\n\n\
+          \ndef _local_name(iri):\n    \"\"\"IRI 의 마지막 #, /, : 뒤 이름. 없으면 원문.\"\"\"\
+          \n    text = _txt(iri).strip()\n    cut = max(text.rfind(\"#\"), text.rfind(\"\
+          /\"), text.rfind(\":\"))\n    tail = text[cut + 1:] if cut >= 0 else text\n\
+          \    return tail or text\n\n\ndef _list_of(value):\n    \"\"\"dict 원소만 남긴\
+          \ 목록. 목록이 아니면 빈 목록.\"\"\"\n    if not isinstance(value, list):\n       \
+          \ return []\n    return [item for item in value if isinstance(item, dict)]\n\
+          \n\ndef _term_of(statement, key):\n    \"\"\"statement 의 subject, predicate,\
+          \ object term. dict 가 아니면 빈 dict.\"\"\"\n    value = statement.get(key)\
+          \ if isinstance(statement, dict) else None\n    return value if isinstance(value,\
+          \ dict) else {}\n\n\ndef main(payload, fail_payload, stop_payload):\n  \
+          \  \"\"\"세 갈래(조회 완료, 인증 실패, 호출 전 중단) 가운데 실행된 갈래의 payload 를 도구 응답 필드로 펼친다.\n\
+          \n    건너뛴 갈래의 출력은 변수 풀에 없어 None 이 온다. status 가 든 첫 payload 를 고른다.\"\"\"\n\
+          \    SPEC = [('status', 'string'), ('repository', 'string'), ('repository_candidates',\
+          \ 'array[string]'), ('candidates', 'array[object]'), ('candidate_count',\
+          \ 'number'), ('warning', 'string')]\n    chosen = None\n    for candidate\
+          \ in (payload, fail_payload, stop_payload):\n        if isinstance(candidate,\
+          \ dict) and _txt(candidate.get(\"status\")):\n            chosen = candidate\n\
+          \            break\n    if chosen is None:\n        chosen = {\"status\"\
+          : \"error\",\n                  \"warning\": \"response_processing_failed:\
+          \ 도구 응답을 조립하지 못했다. 다시 부르지 말고 관리자에게 알린다\"}\n    out = {}\n    for name, kind\
+          \ in SPEC:\n        value = chosen.get(name)\n        if kind == \"string\"\
+          :\n            out[name] = _txt(value)\n        elif kind == \"number\"\
+          :\n            try:\n                out[name] = int(value)\n          \
+          \  except Exception:\n                out[name] = 0\n        elif kind ==\
+          \ \"boolean\":\n            out[name] = value if isinstance(value, bool)\
+          \ else False\n        elif kind == \"object\":\n            out[name] =\
+          \ value if isinstance(value, dict) else {}\n        elif kind == \"array[string]\"\
+          :\n            out[name] = [_txt(item) for item in value] if isinstance(value,\
+          \ list) else []\n        else:\n            out[name] = [item for item in\
+          \ value if isinstance(item, dict)] if isinstance(value, list) else []\n\
+          \    return out\n"
+        code_language: python3
+        desc: 입선 3개(조회 완료, 인증 실패, 호출 전 중단). status 가 든 첫 payload 를 도구 응답 필드로 펼친다
+        outputs:
+          candidate_count:
+            children: null
+            type: number
+          candidates:
+            children: null
+            type: array[object]
+          repository:
+            children: null
+            type: string
+          repository_candidates:
+            children: null
+            type: array[string]
+          status:
+            children: null
+            type: string
+          warning:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 합류와 펼치기
+        type: code
+        variables:
+        - value_selector:
+          - assemble
+          - payload
+          variable: payload
+        - value_selector:
+          - auth
+          - fail_payload
+          variable: fail_payload
+        - value_selector:
+          - prep
+          - stop_payload
+          variable: stop_payload
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: merge
+          position: right
+          type: source
+          width: 8
+          x: 277.199951171875
+          y: 22.7999267578125
+        target:
+        - height: 8
+          id: target
+          nodeId: merge
+          position: left
+          type: target
+          width: 8
+          x: -5.2000732421875
+          y: 22.7999267578125
+      id: merge
+      initialized: false
+      isParent: false
+      position:
+        x: 1337.0510120445992
+        y: 924.9676183589474
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1717.0510120445992
+        y: 924.9676183589474
+        z: 0
+      data:
+        desc: 도구 응답 6필드
+        display_variables:
+        - status
+        - repository
+        - repository_candidates
+        - candidates
+        - candidate_count
+        - warning
+        outputs:
+        - value_selector:
+          - merge
+          - status
+          variable: status
+        - value_selector:
+          - merge
+          - repository
+          variable: repository
+        - value_selector:
+          - merge
+          - repository_candidates
+          variable: repository_candidates
+        - value_selector:
+          - merge
+          - candidates
+          variable: candidates
+        - value_selector:
+          - merge
+          - candidate_count
+          variable: candidate_count
+        - value_selector:
+          - merge
+          - warning
+          variable: warning
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 종료
+        type: end
+      dimensions:
+        height: 243
+        width: 313
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target:
+        - height: 8
+          id: target
+          nodeId: done
+          position: left
+          type: target
+          width: 8
+          x: -5.2000732421875
+          y: 22.7999267578125
+      id: done
+      initialized: false
+      isParent: false
+      position:
+        x: 1717.0510120445992
+        y: 924.9676183589474
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 80
+        y: -538
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 638
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: kg_search_entities 개요
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 사용자가 말한 이름으로 Knowledge Studio repository 의 instance 를 찾아 IRI,
+                  label, 일치 방식, type 목록을 후보로 돌려주는 도구다. 앱 하나가 도구 하나이며 Single Agent
+                  가 MCP 로 호출한다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 입력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' repository(선택), name(필수), class_iri(선택)'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 출력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status, repository, repository_candidates, candidates, candidate_count,
+                  warning'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 부르는 API
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' POST /api/v1/auth/login, GET /api/v1/sparql/repositories(#82),
+                  GET {repositoryId}/sparql(#79) 세 번, POST /api/v1/auth/logout'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 전제
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' mode 는 workflow 다. 대상은 Knowledge Studio(SOR 6.0.0) 서버 한 곳이며
+                  관리 화면, REST API, SPARQL endpoint 가 같은 포트에 있다. 매 호출마다 로그인으로 token
+                  을 받고 끝에 로그아웃한다. 서버 주소, 계정, 추론 스위치, timeout 은 환경변수라 도구 인자에 없다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: blue
+        title: ''
+        type: ''
+        width: 340
+      dimensions:
+        height: 638
+        width: 340
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 638
+      id: note_overview
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: -538
+      positionAbsolute:
+        x: 80
+        y: -538
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#eff8ff'
+        border: '1px solid #84caff'
+        height: 638px
+        width: 340px
+      targetPosition: left
+      type: custom-note
+      width: 340
+      zIndex: -1
+    - computedPosition:
+        x: 1320
+        y: -614
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 714
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 로그인, 조회, 로그아웃 구간
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: prep
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 인자와 환경변수를 정리하고 이 도구가 부를 요청 주소를 전부 완성한다. query string 은 퍼센트
+                  인코딩해 주소에 넣고 http 노드의 params 는 비워 둔다. 설정 오류나 인자 오류면 route 를 stop
+                  으로 두고 stop_payload 에 응답을 담는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: gate_pre
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' route 가 go 일 때만 로그인으로 보내고, 아니면 호출 없이 merge 로 보낸다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: login, auth
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' POST /api/v1/auth/login 에 계정을 JSON 으로 보내고 auth 가 token 을 꺼낸다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: gate_auth
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' token 이 있으면 ready 갈래(조회 노드 전부를 나란히), repository 인자와 기본값이 모두
+                  비었으면 no_repo 갈래(repository 목록 조회만, 후보를 돌려주려고), token 이 없으면 auth
+                  의 fail_payload 로 merge 에 간다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: logout
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 조회 노드가 모두 끝나면(AND-join) POST /api/v1/auth/logout 을 한 번 부른다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: assemble, merge
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' assemble 이 응답을 정리하고, merge 는 세 갈래(assemble, auth, prep) 가운데
+                  status 가 든 첫 payload 를 도구 응답 필드로 펼친다. 건너뛴 갈래의 출력은 None 으로 온다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: green
+        title: ''
+        type: ''
+        width: 340
+      dimensions:
+        height: 714
+        width: 340
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 714
+      id: note_auth
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: -614
+      positionAbsolute:
+        x: 1320
+        y: -614
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#ecfdf3'
+        border: '1px solid #75e0a7'
+        height: 714px
+        width: 340px
+      targetPosition: left
+      type: custom-note
+      width: 340
+      zIndex: -1
+    - computedPosition:
+        x: 842
+        y: -581.2215969728637
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 657
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: repository 대조
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: q_repos 가 GET /api/v1/sparql/repositories 로 이 계정의 repository
+                  목록과 canQuery 를 받는다. 조회 노드와 나란히 부르고, assemble 이 결과를 정리하기 전에 먼저 대조한다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 목록에 없음
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status repository_not_found, warning repository_not_found
+                  와 repository_candidates(canQuery true 인 ID).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: canQuery false
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status repository_not_found, warning repository_not_queryable.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: repository 가 끝내 빔
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status error, warning repository_required 와 후보. 이 경우 gate_auth
+                  가 no_repo 갈래로 목록 조회만 부른다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 목록 요청 실패
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' repository 가 있으면 대조를 건너뛰고 warning repository_list_request_failed
+                  만 남긴다. 목록이 온 경우의 세 판정(repository_not_found, repository_not_queryable,
+                  repository_required)은 목록 내용이 근거라 원인을 그대로 적는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: green
+        title: ''
+        type: ''
+        width: 340
+      dimensions:
+        height: 657
+        width: 340
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 657
+      id: note_repo
+      initialized: false
+      isParent: false
+      position:
+        x: 842
+        y: -581.2215969728637
+      positionAbsolute:
+        x: 460
+        y: -27
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#ecfdf3'
+        border: '1px solid #75e0a7'
+        height: 657px
+        width: 340px
+      targetPosition: left
+      type: custom-note
+      width: 340
+      zIndex: -1
+    - computedPosition:
+        x: 80
+        y: -1196
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 638
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 이름 검색 3단
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: REST API 에 instance 이름 검색 인자가 없어 SPARQL endpoint 에 label 검색
+                  질의 3건을 나란히 보낸다. 세 질의 모두 GROUP BY ?s 와 LIMIT 21 이며 type 은 GROUP_CONCAT
+                  으로 한 칸에 모은다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 1단 정확 일치
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' VALUES 로 label 술어 3종과 이름 원문, @ko, @en 변형을 대조한다. timeout 은
+                  SOR_TIMEOUT_MS.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 2단 label 포함
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' FILTER(CONTAINS(LCASE(STR(?l)), 이름)). 전량 비교라 timeout 을 10초
+                  이하로 둔다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 3단 IRI 끝 이름
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' rdf:type 이 있는 IRI 가운데 /이름, #이름, :이름 으로 끝나는 것(소문자 비교, 공백을 _
+                  로 바꾼 변형과 뺀 변형 포함). timeout 10초 이하.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: class_iri 를 넣으면 세 질의 모두 ?s rdf:type/rdfs:subClassOf* <class_iri>
+                  로 좁힌다. assemble 은 exact, contains, iri 순으로 합치고 IRI 가 겹치면 앞의 것만 남긴다.
+                  어느 단계든 21행이 오면 too_many_matches 를 남긴다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: green
+        title: ''
+        type: ''
+        width: 340
+      dimensions:
+        height: 638
+        width: 340
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 638
+      id: note_flow
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: -1196
+      positionAbsolute:
+        x: 80
+        y: -1196
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#ecfdf3'
+        border: '1px solid #75e0a7'
+        height: 638px
+        width: 340px
+      targetPosition: left
+      type: custom-note
+      width: 340
+      zIndex: -1
+    - computedPosition:
+        x: 460
+        y: -1236
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 1189
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 함정 주의
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 실패한 호출은 status 0 으로 온다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' login, logout, 조회 http 노드에 default-value 를 걸었다. 실패하면 body
+                  빈 문자열, status_code 0 으로 다음 노드가 이어지고, 4xx, 5xx 응답도 노드 실패로 처리되어 서버
+                  오류 원문이 사라진다. 그래서 warning 은 원인을 단정하지 않고 실패 사실만 적는다. 로그인 단계는 login_failed(서버
+                  접속 실패 또는 계정 인증 실패), 조회 단계는 <대상>_request_failed 다. 원인은 실행 기록에서 해당
+                  노드의 error_message(Request failed with status code 401 등)로 확인한다.
+                  원인을 실제로 아는 경우(sparql_run 실행 노드의 4xx 본문, repository 목록 대조 결과)만 구체적인
+                  코드를 쓴다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: logout 이 빠지면 서버에 session 이 쌓인다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 조회가 끝난 뒤 logout 을 한 번 부른다. 그래프가 중간에 멈추거나 logout 요청이 실패하면 token
+                  이 서버 만료 설정(sessionTimeoutMinutes, 0 이면 무제한)까지 남는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 요청 원문이 실행 기록에 남는다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' http 노드는 요청 주소, header, 본문을 실행 기록에 남기므로 login 기록에 SOR_PASSWORD
+                  가, 조회 노드 기록에 Bearer token 이 보인다. 조회 전용 계정을 쓰고 실행 기록 열람 권한을 제한한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: code 노드 병렬 폭은 sandbox 동시 실행 수가 상한이다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 이 앱의 code 노드(prep, auth, assemble, merge)는 순서대로 실행되고 나란히 두지
+                  않았다. 다만 여러 도구가 동시에 호출되면 sandbox(max_workers, SANDBOX_REPLICAS)에서
+                  줄을 선다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: code 노드 출력 키는 선언과 정확히 같아야 한다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 키가 빠지거나 남으면 노드가 실패한다. prep, auth, assemble 은 default-value
+                  로 오류 payload 를 내고, merge 는 boolean 출력이 있어 전략을 걸 수 없다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: name 은 SPARQL 문자열로 escape 한다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 따옴표, 역슬래시, 줄바꿈을 escape 하고, class_iri 는 절대 IRI(http, https,
+                  urn) 검사를 통과한 값만 <...> 안에 넣는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: GET 주소 길이 상한 6,000자.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 질의가 query string 에 실리므로 이름이 아주 길면 query_too_long 으로 호출하지 않는다.
+                  6.0.0 서버의 실제 요청 줄 상한은 미확인이다(5.5.0 SPARQL endpoint 는 4,096 byte).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: red
+        title: ''
+        type: ''
+        width: 350
+      dimensions:
+        height: 1189
+        width: 350
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 1189
+      id: note_traps
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: -1236
+      positionAbsolute:
+        x: 460
+        y: -1236
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fdf2fa'
+        border: '1px solid #faa7e0'
+        height: 1189px
+        width: 350px
+      targetPosition: left
+      type: custom-note
+      width: 350
+      zIndex: -1
+    - computedPosition:
+        x: 460
+        y: -1856
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 600
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: CHANGE-ME 교체 안내
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 가져오기 뒤 앱 설정의 환경변수를 실제 값으로 바꾼다. 다섯 앱에 같은 값을 넣는다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: SOR_BASE_URL
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 서버 root 주소. 초기값 http://211.109.9.74:18080. 끝의 / 와 /admin 은
+                  도구가 뗀다. 비었거나 CHANGE-ME 면 config_missing 으로 끝난다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: SOR_USERNAME
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 조회 전용 서비스 계정. SPARQL_READ 이상 role 과 대상 repository 범위(repositories)가
+                  있어야 한다. CHANGE-ME 그대로면 config_missing 이다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: SOR_PASSWORD
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 그 계정 비밀번호(secret, export 시 비워진다). CHANGE-ME 그대로면 로그인이 실패해
+                  login_failed 로 끝난다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: SOR_REPOSITORY
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 선택. repository 인자를 비웠을 때의 기본 ID.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: SOR_INCLUDE_INFERRED, SOR_INCLUDE_FEDERATION, SOR_TIMEOUT_MS
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 초기값(true, false, 30000)으로 두거나 현장 요구에 맞게 바꾼다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: yellow
+        title: ''
+        type: ''
+        width: 340
+      dimensions:
+        height: 600
+        width: 340
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 600
+      id: note_changeme
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: -1856
+      positionAbsolute:
+        x: 460
+        y: -1856
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fefbe8'
+        border: '1px solid #fde272'
+        height: 600px
+        width: 340px
+      targetPosition: left
+      type: custom-note
+      width: 340
+      zIndex: -1
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0
+  rag_pipeline_variables: []

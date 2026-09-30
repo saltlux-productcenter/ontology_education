@@ -1,0 +1,2486 @@
+app:
+  description: 입력한 질문이나 문장과 의미적으로 관련성이 높은 문서 내용을 찾아 주변 문맥과 함께 조회
+  icon: ri-git-merge-line
+  icon_background: '#14b8a6'
+  mode: workflow
+  name: ontology_document_semantic_search
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Elasticsearch 주소. 끝에 슬래시를 붙이지 않는다
+    id: 47221646-da7c-e90a-f0ac-fa04e3c38d06
+    name: ES_BASE_URL
+    selector:
+    - env
+    - ES_BASE_URL
+    value: http://192.168.250.101:19200
+    value_type: string
+  - description: 표준 계층 색인 v2.0 KB 인덱스명. 단일 인덱스 또는 단일 인덱스를 가리키는 alias
+    id: baded43b-f365-53d5-72ef-ddde34ef82ad
+    name: ES_INDEX
+    selector:
+    - env
+    - ES_INDEX
+    value: manufacturing_erp
+    value_type: string
+  - description: Authorization 헤더 값(ApiKey ... 또는 Basic ...). 인증 없는 ES 면 빈 문자열. secret
+      이라 DSL 을 내보내면 값이 비워진다
+    id: 6fd13c7c-f68b-693e-7473-ec0e656b0709
+    name: ES_AUTH_HEADER
+    selector:
+    - env
+    - ES_AUTH_HEADER
+    value: ''
+    value_type: secret
+  - description: 다중 테넌트 색인의 tenant_id 값. 빈 문자열이면 tenant 조건을 걸지 않는다
+    id: 5affa868-a237-b703-9e1c-e27ef9172cfb
+    name: TENANT_ID
+    selector:
+    - env
+    - TENANT_ID
+    value: ''
+    value_type: string
+  - description: embedding 서버 주소. POST {EMBED_BASE_URL}/v1/embeddings 로 호출한다
+    id: bc4df8cc-86f8-4e41-b2d9-a664da949e37
+    name: EMBED_BASE_URL
+    selector:
+    - env
+    - EMBED_BASE_URL
+    value: http://211.109.9.124:20001
+    value_type: string
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: start-source-prep-target
+      label: ''
+      source: start
+      sourceHandle: source
+      target: prep
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: embed_q-source-extract_qvec-target
+      label: ''
+      selected: false
+      source: embed_q
+      sourceHandle: source
+      target: extract_qvec
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: extract_qvec-source-knn-target
+      label: ''
+      selected: false
+      source: extract_qvec
+      sourceHandle: source
+      target: knn
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: knn-source-fold-target
+      label: ''
+      selected: false
+      source: knn
+      sourceHandle: source
+      target: fold
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: fold-source-read_parents-target
+      label: ''
+      selected: false
+      source: fold
+      sourceHandle: source
+      target: read_parents
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: read_parents-source-shape-target
+      label: ''
+      selected: false
+      source: read_parents
+      sourceHandle: source
+      target: shape
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: prep-source-gate-target
+      label: ''
+      source: prep
+      sourceHandle: source
+      target: gate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate-ok-embed_q-target
+      label: ''
+      source: gate
+      sourceHandle: ok
+      target: embed_q
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: gate-false-precheck_fail-target
+      label: ''
+      source: gate
+      sourceHandle: 'false'
+      target: precheck_fail
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: shape-source-merge-target
+      label: ''
+      selected: false
+      source: shape
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: precheck_fail-source-merge-target
+      label: ''
+      selected: false
+      source: precheck_fail
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: code
+      id: merge-source-unpack-target
+      label: ''
+      selected: false
+      source: merge
+      sourceHandle: source
+      target: unpack
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: end
+      id: unpack-source-done-target
+      label: ''
+      selected: false
+      source: unpack
+      sourceHandle: source
+      target: done
+      targetHandle: target
+      type: custom
+    nodes:
+    - computedPosition:
+        x: 80
+        y: 140
+        z: 0
+      data:
+        desc: query 는 필수, document_id 는 선택이다. 인덱스명과 주소는 환경변수다
+        display_variables:
+        - query
+        - document_id
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 인자 받기
+        type: start
+        variables:
+        - default: ''
+          description: '찾을 내용을 뜻이 드러나는 문장으로 쓴다. 표현이 달라도 뜻이 가까운 섹션을 찾는다. 예시 1: 반납 기한을
+            넘기면 연체료는 하루에 얼마인가. 예시 2: 이용자가 한 번에 대출할 수 있는 자료의 권수를 정한 조항. CQ 문장이나 사용자
+            문장을 그대로 쓰고 없는 조건을 덧붙이지 않는다.'
+          label: 찾을 내용
+          required: true
+          type: paragraph
+          variable: query
+        - default: ''
+          description: '검색을 문서 하나로 좁힐 때만 넣는 문서 식별자다. abox_read_documents 나 앞선 검색 결과의
+            document_id 값을 그대로 복사한다. 비우면 색인 전체를 검색한다. 문서명은 넣지 않는다. 예시 1: doc-2026-library-rules-001.
+            예시 2: doc-2025-library-loan-002. 앞선 결과에 있는 값만 쓰고 식별자를 지어내지 않는다.'
+          label: 문서 식별자
+          required: false
+          type: text-input
+          variable: document_id
+      dimensions:
+        height: 165
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: start
+          position: right
+          type: source
+          width: 8
+          x: 276.4000244140625
+          y: 23.600006103515625
+        target: null
+      id: start
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 460
+        y: 140
+        z: 0
+      data:
+        code: "\nWARN = {'no_results': ['질의와 뜻이 가까운 섹션이 없다(유사도 하한 미만)', '같은 인자로 다시\
+          \ 부르지 말고, 질의 문장을 한 번만 다른 표현으로 바꾸거나 핵심 낱말로 abox_search_keyword 를 쓴다. 그래도\
+          \ 없으면 찾지 못한 것으로 기록한다'], 'document_id_no_match': ['document_id 로 좁힌 검색 결과가\
+          \ 없다', 'document_id 를 비워 한 번 다시 호출하거나 abox_read_documents 로 document_id\
+          \ 를 확인한다. 둘 가운데 하나만 한다'], 'query_empty': ['query 가 비었다', '찾을 낱말이나 문장을 query\
+          \ 에 넣어 다시 호출한다'], 'embedding_unavailable': ['embedding 서버를 쓸 수 없어 벡터 검색을\
+          \ 하지 못했다', '같은 내용의 핵심 낱말로 abox_search_keyword 를 호출한다'], 'section_fetch_failed':\
+          \ ['parent 섹션 본문 조회가 실패해 모든 결과를 child 본문으로 대체했다', '섹션 전체가 필요하면 section_chunk_id\
+          \ 를 abox_read_documents 의 position 에 넣는다'], 'section_partial_missing': ['결과\
+          \ {n}건은 parent 섹션 본문이 없어 child 본문으로 대체했다', '그 항목은 body_source 가 child 이고\
+          \ 근거 chunk_id 는 그 항목의 chunk_id 다'], 'section_layer_missing': ['모든 결과의 parent\
+          \ 섹션 본문이 없어 child 본문으로 대체했다', '근거 chunk_id 는 각 항목의 chunk_id 를 쓴다'], 'query_truncated':\
+          \ ['query 가 1,000자를 넘어 앞 1,000자만 썼다', '다음 호출에는 핵심 낱말만 넣는다'], 'result_trimmed':\
+          \ ['결과 길이 상한 8,000자에 맞춰 발췌를 짧게 줄였다(뺀 결과 {n}건)', '섹션 전체가 필요하면 section_chunk_id\
+          \ 를 abox_read_documents 의 position 에 넣는다'], 'search_failed': ['ES 조회가 실패했다(HTTP\
+          \ {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'es_base_url_missing': ['환경변수\
+          \ ES_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라\
+          \ 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX 가\
+          \ 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지\
+          \ 말고 사용자에게 알린다'], 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가 CHANGE-ME\
+          \ 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'],\
+          \ 'tenant_id_missing': ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은\
+          \ 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'embed_base_url_missing':\
+          \ ['환경변수 EMBED_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가\
+          \ 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\ndef _to_int(value):\n \
+          \   try:\n        return int(value)\n    except Exception:\n        return\
+          \ 0\n\n\ndef _parse_json(raw):\n    import json\n    if isinstance(raw,\
+          \ (dict, list)):\n        return raw\n    if not raw:\n        return None\n\
+          \    try:\n        return json.loads(raw)\n    except Exception:\n     \
+          \   return None\n\n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\nCONFIG_CHECKS = [['es_base_url', 'es_base_url_missing',\
+          \ True], ['es_index', 'es_index_missing', True], ['es_auth_header', 'es_auth_header_missing',\
+          \ False], ['tenant_id', 'tenant_id_missing', False], ['embed_base_url',\
+          \ 'embed_base_url_missing', True]]\n\n\ndef _config_error(values):\n   \
+          \ missing = []\n    for name, code, empty_is_unset in CONFIG_CHECKS:\n \
+          \       raw = values.get(name)\n        text = str(raw if raw is not None\
+          \ else \"\").strip()\n        if (not text and empty_is_unset) or text.startswith(\"\
+          CHANGE-ME\"):\n            missing.append(_wtext(code))\n    return \";\
+          \ \".join(missing)\n\n\ndef _level_filters(level, tenant_id):\n    filters\
+          \ = [{\"term\": {\"chunk_level\": level}},\n               {\"term\": {\"\
+          is_latest\": True}},\n               {\"term\": {\"lifecycle_state\": \"\
+          active\"}}]\n    tenant = str(tenant_id if tenant_id is not None else \"\
+          \").strip()\n    if tenant and not tenant.startswith(\"CHANGE-ME\"):\n \
+          \       filters.append({\"term\": {\"tenant_id\": tenant}})\n    return\
+          \ filters\n\ndef main(query, document_id, es_base_url, es_index, es_auth_header,\
+          \ tenant_id, embed_base_url=None):\n    QUERY_MAX = 1000\n    text = str(query\
+          \ if query is not None else \"\").strip()\n    warnings = []\n    arg_error\
+          \ = \"\"\n    if not text:\n        arg_error = _wtext(\"query_empty\")\n\
+          \    elif len(text) > QUERY_MAX:\n        text = text[:QUERY_MAX]\n    \
+          \    warnings.append(_wtext(\"query_truncated\"))\n    doc_id = str(document_id\
+          \ if document_id is not None else \"\").strip()\n    filters = _level_filters(\"\
+          child\", tenant_id)\n    if doc_id:\n        filters.append({\"term\": {\"\
+          document_id\": doc_id}})\n    config_error = _config_error({\"es_base_url\"\
+          : es_base_url, \"es_index\": es_index,\n                               \
+          \   \"es_auth_header\": es_auth_header, \"tenant_id\": tenant_id,\n    \
+          \                              \"embed_base_url\": embed_base_url})\n  \
+          \  return {\"query\": text, \"child_filters\": filters, \"has_doc_filter\"\
+          : 1 if doc_id else 0,\n            \"input_warning\": \"; \".join(warnings),\
+          \ \"config_error\": config_error,\n            \"arg_error\": arg_error}\n"
+        code_language: python3
+        desc: 빈 질의는 arg_error, 1,000자 초과는 자른다. child 층 필수 filter 와 document_id 조건을
+          만들고 환경변수를 점검한다
+        outputs:
+          arg_error:
+            children: null
+            type: string
+          child_filters:
+            children: null
+            type: array[object]
+          config_error:
+            children: null
+            type: string
+          has_doc_filter:
+            children: null
+            type: number
+          input_warning:
+            children: null
+            type: string
+          query:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 질의 정리·child filter 조립·점검
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - query
+          variable: query
+        - value_selector:
+          - start
+          - document_id
+          variable: document_id
+        - value_selector:
+          - env
+          - ES_BASE_URL
+          variable: es_base_url
+        - value_selector:
+          - env
+          - ES_INDEX
+          variable: es_index
+        - value_selector:
+          - env
+          - ES_AUTH_HEADER
+          variable: es_auth_header
+        - value_selector:
+          - env
+          - TENANT_ID
+          variable: tenant_id
+        - value_selector:
+          - env
+          - EMBED_BASE_URL
+          variable: embed_base_url
+      dimensions:
+        height: 55
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: prep
+          position: right
+          type: source
+          width: 8
+          x: 276.4000244140625
+          y: 23.600006103515625
+        target:
+        - height: 8
+          id: target
+          nodeId: prep
+          position: left
+          type: target
+          width: 8
+          x: -4.39996337890625
+          y: 23.600006103515625
+      id: prep
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 140
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"input": ["{{#prep.query#}}"]}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: POST /v1/embeddings 로 질의를 벡터로 바꾼다. model 필드는 보내지 않는다
+        error_strategy: default-value
+        headers: Content-Type:application/json;charset=UTF-8
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: 질의 embedding
+        type: http-request
+        url: '{{#env.EMBED_BASE_URL#}}/v1/embeddings'
+        variables: []
+      dimensions:
+        height: 139
+        width: 304
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: embed_q
+          position: right
+          type: source
+          width: 8
+          x: 301.0750732421875
+          y: 22.800018310546875
+        target:
+        - height: 8
+          id: target
+          nodeId: embed_q
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.800018310546875
+      id: embed_q
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 507.72829451567
+        z: 0
+      data:
+        code: "\ndef main(body):\n    import json\n    DIGITS = 12\n    empty = {\"\
+          qvec\": [], \"qvec_dims\": 0}\n    if not body:\n        return empty\n\
+          \    try:\n        data = json.loads(body)\n    except Exception:\n    \
+          \    return empty\n    if not isinstance(data, dict):\n        return empty\n\
+          \    rows = data.get(\"data\")\n    if not isinstance(rows, list) or not\
+          \ rows:\n        return empty\n    head = rows[0]\n    vector = head.get(\"\
+          embedding\") if isinstance(head, dict) else None\n    if not isinstance(vector,\
+          \ list) or not vector:\n        return empty\n    out = []\n    for item\
+          \ in vector:\n        try:\n            out.append(round(float(item), DIGITS))\n\
+          \        except Exception:\n            return empty\n    return {\"qvec\"\
+          : out, \"qvec_dims\": len(out)}\n"
+        code_language: python3
+        default_value:
+        - key: qvec
+          type: array[number]
+          value: []
+        - key: qvec_dims
+          type: number
+          value: 0
+        desc: data[0].embedding 과 차원 수를 낸다. 실패하면 빈 배열과 0
+        error_strategy: default-value
+        outputs:
+          qvec:
+            children: null
+            type: array[number]
+          qvec_dims:
+            children: null
+            type: number
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 질의 벡터 꺼내기
+        type: code
+        variables:
+        - value_selector:
+          - embed_q
+          - body
+          variable: body
+      dimensions:
+        height: 100
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: extract_qvec
+          position: right
+          type: source
+          width: 8
+          x: 277.2000732421875
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: extract_qvec
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.79998779296875
+      id: extract_qvec
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 507.72829451567
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 840
+        y: 507.72829451567
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"size": 50, "_source": ["document_id", "chunk_id", "parent_chunk_id",
+              "title", "page_start", "page_end", "content"], "knn": {"field": "content_vector",
+              "query_vector": "{{#extract_qvec.qvec#}}", "k": 50, "num_candidates":
+              500, "similarity": 0.35, "filter": "{{#prep.child_filters#}}"}}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: child 층 kNN 50건. cosine 유사도 0.35 미만은 회수하지 않는다
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8
+
+          Authorization:{{#env.ES_AUTH_HEADER#}}'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: child kNN 검색
+        type: http-request
+        url: '{{#env.ES_BASE_URL#}}/{{#env.ES_INDEX#}}/_search'
+        variables: []
+      dimensions:
+        height: 139
+        width: 310
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: knn
+          position: right
+          type: source
+          width: 8
+          x: 307.550048828125
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: knn
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.79998779296875
+      id: knn
+      initialized: false
+      isParent: false
+      position:
+        x: 840
+        y: 507.72829451567
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 460
+        y: 507.72829451567
+        z: 0
+      data:
+        code: "\nWARN = {'no_results': ['질의와 뜻이 가까운 섹션이 없다(유사도 하한 미만)', '같은 인자로 다시\
+          \ 부르지 말고, 질의 문장을 한 번만 다른 표현으로 바꾸거나 핵심 낱말로 abox_search_keyword 를 쓴다. 그래도\
+          \ 없으면 찾지 못한 것으로 기록한다'], 'document_id_no_match': ['document_id 로 좁힌 검색 결과가\
+          \ 없다', 'document_id 를 비워 한 번 다시 호출하거나 abox_read_documents 로 document_id\
+          \ 를 확인한다. 둘 가운데 하나만 한다'], 'query_empty': ['query 가 비었다', '찾을 낱말이나 문장을 query\
+          \ 에 넣어 다시 호출한다'], 'embedding_unavailable': ['embedding 서버를 쓸 수 없어 벡터 검색을\
+          \ 하지 못했다', '같은 내용의 핵심 낱말로 abox_search_keyword 를 호출한다'], 'section_fetch_failed':\
+          \ ['parent 섹션 본문 조회가 실패해 모든 결과를 child 본문으로 대체했다', '섹션 전체가 필요하면 section_chunk_id\
+          \ 를 abox_read_documents 의 position 에 넣는다'], 'section_partial_missing': ['결과\
+          \ {n}건은 parent 섹션 본문이 없어 child 본문으로 대체했다', '그 항목은 body_source 가 child 이고\
+          \ 근거 chunk_id 는 그 항목의 chunk_id 다'], 'section_layer_missing': ['모든 결과의 parent\
+          \ 섹션 본문이 없어 child 본문으로 대체했다', '근거 chunk_id 는 각 항목의 chunk_id 를 쓴다'], 'query_truncated':\
+          \ ['query 가 1,000자를 넘어 앞 1,000자만 썼다', '다음 호출에는 핵심 낱말만 넣는다'], 'result_trimmed':\
+          \ ['결과 길이 상한 8,000자에 맞춰 발췌를 짧게 줄였다(뺀 결과 {n}건)', '섹션 전체가 필요하면 section_chunk_id\
+          \ 를 abox_read_documents 의 position 에 넣는다'], 'search_failed': ['ES 조회가 실패했다(HTTP\
+          \ {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'es_base_url_missing': ['환경변수\
+          \ ES_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라\
+          \ 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX 가\
+          \ 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지\
+          \ 말고 사용자에게 알린다'], 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가 CHANGE-ME\
+          \ 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'],\
+          \ 'tenant_id_missing': ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은\
+          \ 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'embed_base_url_missing':\
+          \ ['환경변수 EMBED_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가\
+          \ 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\ndef _to_int(value):\n \
+          \   try:\n        return int(value)\n    except Exception:\n        return\
+          \ 0\n\n\ndef _parse_json(raw):\n    import json\n    if isinstance(raw,\
+          \ (dict, list)):\n        return raw\n    if not raw:\n        return None\n\
+          \    try:\n        return json.loads(raw)\n    except Exception:\n     \
+          \   return None\n\n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\ndef main(search_body, search_status):\n    TOP_N\
+          \ = 5\n    MATCHED_MAX = 2\n    PARENT_FIELDS = ['chunk_id', 'document_id',\
+          \ 'title', 'page_start', 'page_end', 'content']\n    NO_CANDIDATES_ID =\
+          \ '__no_candidates__'\n\n    placeholder = [{\"_id\": NO_CANDIDATES_ID,\
+          \ \"_source\": [\"chunk_id\"]}]\n    data = _parse_json(search_body)\n \
+          \   if _http_failed(search_status, data):\n        return {\"sections\"\
+          : [], \"mget_docs\": placeholder, \"hit_count\": 0,\n                \"\
+          search_error\": str(_to_int(search_status))}\n    hits = _hits_of(data)\n\
+          \    order = []\n    best = {}\n    for hit in hits:\n        if not isinstance(hit,\
+          \ dict):\n            continue\n        src = hit.get(\"_source\") if isinstance(hit.get(\"\
+          _source\"), dict) else {}\n        chunk_id = str(src.get(\"chunk_id\")\
+          \ or hit.get(\"_id\") or \"\")\n        if not chunk_id:\n            continue\n\
+          \        parent_id = str(src.get(\"parent_chunk_id\") or \"\")\n       \
+          \ key = parent_id or chunk_id\n        if key in best:\n            matched\
+          \ = best[key][\"matched_child_ids\"]\n            if len(matched) < MATCHED_MAX\
+          \ and chunk_id not in matched:\n                matched.append(chunk_id)\n\
+          \            continue\n        try:\n            score = round(float(hit.get(\"\
+          _score\") or 0.0), 4)\n        except Exception:\n            score = 0.0\n\
+          \        best[key] = {\"parent_chunk_id\": parent_id,\n                \
+          \     \"document_id\": str(src.get(\"document_id\") or \"\"),\n        \
+          \             \"title\": str(src.get(\"title\") or \"\"),\n            \
+          \         \"score\": score,\n                     \"child_id\": chunk_id,\n\
+          \                     \"child_content\": str(src.get(\"content\") or \"\"\
+          ),\n                     \"child_page_start\": _to_int(src.get(\"page_start\"\
+          )),\n                     \"child_page_end\": _to_int(src.get(\"page_end\"\
+          )),\n                     \"matched_child_ids\": [chunk_id]}\n        order.append(key)\n\
+          \    sections = [best[key] for key in order[:TOP_N]]\n    mget_docs = [{\"\
+          _id\": item[\"parent_chunk_id\"], \"_source\": list(PARENT_FIELDS)}\n  \
+          \               for item in sections if item[\"parent_chunk_id\"]]\n   \
+          \ return {\"sections\": sections, \"mget_docs\": mget_docs or placeholder,\n\
+          \            \"hit_count\": len(hits), \"search_error\": \"\"}\n"
+        code_language: python3
+        desc: 섹션당 최고 점수 child 1건으로 접어 상위 5 섹션을 남기고 _mget docs 를 만든다
+        outputs:
+          hit_count:
+            children: null
+            type: number
+          mget_docs:
+            children: null
+            type: array[object]
+          search_error:
+            children: null
+            type: string
+          sections:
+            children: null
+            type: array[object]
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: parent 단위 접기
+        type: code
+        variables:
+        - value_selector:
+          - knn
+          - body
+          variable: search_body
+        - value_selector:
+          - knn
+          - status_code
+          variable: search_status
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: fold
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: fold
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.79998779296875
+      id: fold
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: 507.72829451567
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 80
+        y: 507.72829451567
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"docs": "{{#fold.mget_docs#}}"}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: _mget docs 형식으로 parent 본문을 한 번에 읽는다. 후보가 없으면 자리표시자 1건
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8
+
+          Authorization:{{#env.ES_AUTH_HEADER#}}'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: parent 본문 읽기
+        type: http-request
+        url: '{{#env.ES_BASE_URL#}}/{{#env.ES_INDEX#}}/_mget'
+        variables: []
+      dimensions:
+        height: 139
+        width: 304
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: read_parents
+          position: right
+          type: source
+          width: 8
+          x: 301.53753662109375
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: read_parents
+          position: left
+          type: target
+          width: 8
+          x: -5.1999969482421875
+          y: 22.79998779296875
+      id: read_parents
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: 507.72829451567
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 73.03559549363104
+        y: 727.8122939822497
+        z: 0
+      data:
+        code: "\nWARN = {'no_results': ['질의와 뜻이 가까운 섹션이 없다(유사도 하한 미만)', '같은 인자로 다시\
+          \ 부르지 말고, 질의 문장을 한 번만 다른 표현으로 바꾸거나 핵심 낱말로 abox_search_keyword 를 쓴다. 그래도\
+          \ 없으면 찾지 못한 것으로 기록한다'], 'document_id_no_match': ['document_id 로 좁힌 검색 결과가\
+          \ 없다', 'document_id 를 비워 한 번 다시 호출하거나 abox_read_documents 로 document_id\
+          \ 를 확인한다. 둘 가운데 하나만 한다'], 'query_empty': ['query 가 비었다', '찾을 낱말이나 문장을 query\
+          \ 에 넣어 다시 호출한다'], 'embedding_unavailable': ['embedding 서버를 쓸 수 없어 벡터 검색을\
+          \ 하지 못했다', '같은 내용의 핵심 낱말로 abox_search_keyword 를 호출한다'], 'section_fetch_failed':\
+          \ ['parent 섹션 본문 조회가 실패해 모든 결과를 child 본문으로 대체했다', '섹션 전체가 필요하면 section_chunk_id\
+          \ 를 abox_read_documents 의 position 에 넣는다'], 'section_partial_missing': ['결과\
+          \ {n}건은 parent 섹션 본문이 없어 child 본문으로 대체했다', '그 항목은 body_source 가 child 이고\
+          \ 근거 chunk_id 는 그 항목의 chunk_id 다'], 'section_layer_missing': ['모든 결과의 parent\
+          \ 섹션 본문이 없어 child 본문으로 대체했다', '근거 chunk_id 는 각 항목의 chunk_id 를 쓴다'], 'query_truncated':\
+          \ ['query 가 1,000자를 넘어 앞 1,000자만 썼다', '다음 호출에는 핵심 낱말만 넣는다'], 'result_trimmed':\
+          \ ['결과 길이 상한 8,000자에 맞춰 발췌를 짧게 줄였다(뺀 결과 {n}건)', '섹션 전체가 필요하면 section_chunk_id\
+          \ 를 abox_read_documents 의 position 에 넣는다'], 'search_failed': ['ES 조회가 실패했다(HTTP\
+          \ {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'es_base_url_missing': ['환경변수\
+          \ ES_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라\
+          \ 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX 가\
+          \ 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지\
+          \ 말고 사용자에게 알린다'], 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가 CHANGE-ME\
+          \ 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'],\
+          \ 'tenant_id_missing': ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은\
+          \ 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'embed_base_url_missing':\
+          \ ['환경변수 EMBED_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가\
+          \ 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\ndef _to_int(value):\n \
+          \   try:\n        return int(value)\n    except Exception:\n        return\
+          \ 0\n\n\ndef _parse_json(raw):\n    import json\n    if isinstance(raw,\
+          \ (dict, list)):\n        return raw\n    if not raw:\n        return None\n\
+          \    try:\n        return json.loads(raw)\n    except Exception:\n     \
+          \   return None\n\n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\ndef _excerpt(body, child, width, anchor_chars,\
+          \ excerpt_chars):\n    size = len(body)\n    head = child.strip()\n    anchor\
+          \ = -1\n    for probe_len in (anchor_chars, anchor_chars // 2):\n      \
+          \  probe = head[:probe_len]\n        if probe:\n            anchor = body.find(probe)\n\
+          \            if anchor >= 0:\n                break\n    child_excerpt =\
+          \ \"\" if anchor >= 0 else child[:excerpt_chars]\n    if size <= width:\n\
+          \        return body, 0, False, child_excerpt\n    if anchor < 0:\n    \
+          \    anchor = 0\n    start = max(0, anchor - width // 4)\n    end = min(size,\
+          \ start + width)\n    if end - start < width:\n        start = max(0, end\
+          \ - width)\n    if start > 0:\n        for index in range(start, min(start\
+          \ + 20, size)):\n            if body[index].isspace():\n               \
+          \ start = index + 1\n                break\n    if end < size:\n       \
+          \ for index in range(end, max(end - 20, start), -1):\n            if body[index].isspace():\n\
+          \                end = index\n                break\n    return body[start:end],\
+          \ start, (start > 0 or end < size), child_excerpt\n\n\ndef main(mget_body,\
+          \ mget_status, sections, hit_count, search_error, has_doc_filter,\n    \
+          \     input_warning, qvec_dims=1):\n    CONTENT_BUDGET = 5000\n    TEXT_MAX\
+          \ = 3000\n    ANCHOR = 40\n    EXCERPT = 300\n    MATCHED_MAX = 2\n    TARGET\
+          \ = 7800\n    SHRINK_STEPS = 3\n\n    payload = {\"status\": \"\", \"results\"\
+          : [], \"result_count\": 0, \"warning\": \"\"}\n    info = [text for text\
+          \ in [str(input_warning or \"\").strip()] if text]\n\n    if _to_int(qvec_dims)\
+          \ <= 0:\n        payload[\"status\"] = \"error\"\n        payload[\"warning\"\
+          ] = \"; \".join([_wtext(\"embedding_unavailable\")] + info)\n        return\
+          \ {\"payload\": payload}\n    error_text = str(search_error or \"\").strip()\n\
+          \    if error_text:\n        payload[\"status\"] = \"error\"\n        payload[\"\
+          warning\"] = \"; \".join([_wtext(\"search_failed\", code=error_text)] +\
+          \ info)\n        return {\"payload\": payload}\n    rows = [row for row\
+          \ in (sections if isinstance(sections, list) else []) if isinstance(row,\
+          \ dict)]\n    if not rows or _to_int(hit_count) <= 0:\n        payload[\"\
+          status\"] = \"no_results\"\n        code = \"document_id_no_match\" if _to_int(has_doc_filter)\
+          \ else \"no_results\"\n        payload[\"warning\"] = \"; \".join([_wtext(code)]\
+          \ + info)\n        return {\"payload\": payload}\n\n    mget_data = _parse_json(mget_body)\n\
+          \    fetch_failed = _http_failed(mget_status, mget_data)\n    parents =\
+          \ {}\n    if not fetch_failed:\n        docs = mget_data.get(\"docs\")\n\
+          \        for doc in (docs if isinstance(docs, list) else []):\n        \
+          \    if isinstance(doc, dict) and doc.get(\"found\") and isinstance(doc.get(\"\
+          _source\"), dict):\n                parents[str(doc.get(\"_id\") or \"\"\
+          )] = doc[\"_source\"]\n\n    items = []\n    missing = 0\n    for row in\
+          \ rows:\n        parent_id = str(row.get(\"parent_chunk_id\") or \"\")\n\
+          \        src = parents.get(parent_id) if parent_id else None\n        if\
+          \ isinstance(src, dict):\n            items.append({\"row\": row, \"body\"\
+          : str(src.get(\"content\") or \"\"), \"source\": \"parent\",\n         \
+          \                 \"chunk_id\": parent_id, \"page_start\": _to_int(src.get(\"\
+          page_start\")),\n                          \"page_end\": _to_int(src.get(\"\
+          page_end\")),\n                          \"title\": str(src.get(\"title\"\
+          ) or row.get(\"title\") or \"\")})\n        else:\n            missing +=\
+          \ 1\n            items.append({\"row\": row, \"body\": str(row.get(\"child_content\"\
+          ) or \"\"), \"source\": \"child\",\n                          \"chunk_id\"\
+          : str(row.get(\"child_id\") or \"\"),\n                          \"page_start\"\
+          : _to_int(row.get(\"child_page_start\")),\n                          \"\
+          page_end\": _to_int(row.get(\"child_page_end\")),\n                    \
+          \      \"title\": str(row.get(\"title\") or \"\")})\n\n    def build(width):\n\
+          \        out = []\n        for item in items:\n            row = item[\"\
+          row\"]\n            text, offset, truncated, child_excerpt = _excerpt(\n\
+          \                item[\"body\"], str(row.get(\"child_content\") or \"\"\
+          ), width, ANCHOR, EXCERPT)\n            matched = row.get(\"matched_child_ids\"\
+          ) if isinstance(row.get(\"matched_child_ids\"), list) else []\n        \
+          \    score = row.get(\"score\")\n            out.append({\"document_id\"\
+          : str(row.get(\"document_id\") or \"\"),\n                        \"title\"\
+          : item[\"title\"],\n                        \"chunk_id\": item[\"chunk_id\"\
+          ],\n                        \"section_chunk_id\": str(row.get(\"parent_chunk_id\"\
+          ) or \"\"),\n                        \"page_start\": item[\"page_start\"\
+          ],\n                        \"page_end\": item[\"page_end\"],\n        \
+          \                \"text\": text,\n                        \"text_offset\"\
+          : offset,\n                        \"section_chars\": len(item[\"body\"\
+          ]),\n                        \"truncated\": truncated,\n               \
+          \         \"body_source\": item[\"source\"],\n                        \"\
+          matched_child_ids\": [str(value) for value in matched[:MATCHED_MAX]],\n\
+          \                        \"child_excerpt\": child_excerpt,\n           \
+          \             \"score\": score if isinstance(score, (int, float)) else 0})\n\
+          \        return out\n\n    notes = []\n    if fetch_failed:\n        notes.append(_wtext(\"\
+          section_fetch_failed\"))\n    elif missing and missing == len(items):\n\
+          \        notes.append(_wtext(\"section_layer_missing\"))\n    elif missing:\n\
+          \        notes.append(_wtext(\"section_partial_missing\", n=missing))\n\
+          \    warnings = notes + info\n\n    width = min(TEXT_MAX, CONTENT_BUDGET\
+          \ // len(items))\n    results = build(width)\n    payload[\"status\"] =\
+          \ \"success\"\n    payload[\"results\"] = results\n    payload[\"result_count\"\
+          ] = len(results)\n    payload[\"warning\"] = \"; \".join(warnings)\n   \
+          \ steps = 0\n    while _size(payload) > TARGET and steps < SHRINK_STEPS:\n\
+          \        width = int(width * 0.8)\n        steps += 1\n        results =\
+          \ build(width)\n        payload[\"results\"] = results\n    dropped = 0\n\
+          \    while _size(payload) > TARGET and len(results) > 1:\n        results.pop()\n\
+          \        dropped += 1\n        payload[\"result_count\"] = len(results)\n\
+          \    if steps or dropped:\n        warnings.append(_wtext(\"result_trimmed\"\
+          , n=dropped))\n    payload[\"result_count\"] = len(results)\n    payload[\"\
+          warning\"] = \"; \".join(warnings)\n    return {\"payload\": payload}\n"
+        code_language: python3
+        desc: 발췌 구간(항목당 min(3,000, 5,000 ÷ 건수)자)을 자르고 결과 8,000자 상한을 지킨다
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 결과 조립
+        type: code
+        variables:
+        - value_selector:
+          - read_parents
+          - body
+          variable: mget_body
+        - value_selector:
+          - read_parents
+          - status_code
+          variable: mget_status
+        - value_selector:
+          - fold
+          - sections
+          variable: sections
+        - value_selector:
+          - fold
+          - hit_count
+          variable: hit_count
+        - value_selector:
+          - fold
+          - search_error
+          variable: search_error
+        - value_selector:
+          - prep
+          - has_doc_filter
+          variable: has_doc_filter
+        - value_selector:
+          - prep
+          - input_warning
+          variable: input_warning
+        - value_selector:
+          - extract_qvec
+          - qvec_dims
+          variable: qvec_dims
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: shape
+          position: right
+          type: source
+          width: 8
+          x: 277.1999969482422
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: shape
+          position: left
+          type: target
+          width: 8
+          x: -5.1999969482421875
+          y: 22.79998779296875
+      id: shape
+      initialized: false
+      isParent: false
+      position:
+        x: 73.03559549363104
+        y: 727.8122939822497
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 840
+        y: 140
+        z: 0
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - comparison_operator: empty
+            id: ea1a6b21-8f2c-922a-de3c-aeb853df60f8
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - config_error
+          - comparison_operator: empty
+            id: c870866f-b23e-f485-793e-d0ee8a7654eb
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - arg_error
+          logical_operator: and
+        desc: config_error 와 arg_error 가 모두 비었을 때만 조회 갈래(ok)로 보낸다. 아니면 false 갈래로 외부
+          호출 없이 끝낸다
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 사전 점검
+        type: if-else
+      dimensions:
+        height: 204
+        width: 343
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: ok
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 339.5999755859375
+          y: 58.600006103515625
+        - height: 8
+          id: 'false'
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 339.5999755859375
+          y: 177.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: gate
+          position: left
+          type: target
+          width: 8
+          x: -4.39996337890625
+          y: 23.600006103515625
+      id: gate
+      initialized: false
+      isParent: false
+      position:
+        x: 840
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 429
+        z: 0
+      data:
+        code: "\ndef main(config_error, arg_error):\n    config_text = str(config_error\
+          \ or \"\").strip()\n    arg_text = str(arg_error or \"\").strip()\n    if\
+          \ config_text:\n        return {\"payload\": {\"status\": \"error\", \"\
+          warning\": config_text}}\n    return {\"payload\": {\"status\": \"invalid_arguments\"\
+          , \"warning\": arg_text}}\n"
+        code_language: python3
+        desc: 외부 호출 없이 응답을 만든다. 설정 오류면 status error, 인자 오류면 invalid_arguments
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 점검 실패 응답
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - config_error
+          variable: config_error
+        - value_selector:
+          - prep
+          - arg_error
+          variable: arg_error
+      dimensions:
+        height: 55
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: precheck_fail
+          position: right
+          type: source
+          width: 8
+          x: 276.4000244140625
+          y: 23.60003662109375
+        target:
+        - height: 8
+          id: target
+          nodeId: precheck_fail
+          position: left
+          type: target
+          width: 8
+          x: -4.4000244140625
+          y: 23.60003662109375
+      id: precheck_fail
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 429
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 453.03559549363104
+        y: 727.8122939822497
+        z: 0
+      data:
+        desc: 두 갈래 가운데 실행된 쪽의 payload 를 고른다
+        output_type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 합류
+        type: variable-aggregator
+        variables:
+        - - shape
+          - payload
+        - - precheck_fail
+          - payload
+      dimensions:
+        height: 55
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: merge
+          position: right
+          type: source
+          width: 8
+          x: 276.39996337890625
+          y: 23.5999755859375
+        target:
+        - height: 8
+          id: target
+          nodeId: merge
+          position: left
+          type: target
+          width: 8
+          x: -4.39996337890625
+          y: 23.5999755859375
+      id: merge
+      initialized: false
+      isParent: false
+      position:
+        x: 453.03559549363104
+        y: 727.8122939822497
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 833.035595493631
+        y: 727.8122939822497
+        z: 0
+      data:
+        code: "\ndef main(payload):\n    FIELDS = [['status', 'string'], ['results',\
+          \ 'array[object]'], ['result_count', 'number'], ['warning', 'string']]\n\
+          \    data = payload if isinstance(payload, dict) else {}\n    out = {}\n\
+          \    for name, kind in FIELDS:\n        value = data.get(name)\n       \
+          \ if kind == \"string\":\n            out[name] = str(value) if value is\
+          \ not None else \"\"\n        elif kind == \"number\":\n            try:\n\
+          \                out[name] = int(value)\n            except Exception:\n\
+          \                out[name] = 0\n        elif kind == \"object\":\n     \
+          \       out[name] = value if isinstance(value, dict) else {}\n        else:\n\
+          \            out[name] = value if isinstance(value, list) else []\n    return\
+          \ out\n"
+        code_language: python3
+        desc: payload 를 end 출력 4개로 펼치고 형을 맞춘다. end 는 이 노드만 참조한다
+        outputs:
+          result_count:
+            children: null
+            type: number
+          results:
+            children: null
+            type: array[object]
+          status:
+            children: null
+            type: string
+          warning:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 펼치기
+        type: code
+        variables:
+        - value_selector:
+          - merge
+          - output
+          variable: payload
+      dimensions:
+        height: 55
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: unpack
+          position: right
+          type: source
+          width: 8
+          x: 276.39996337890625
+          y: 23.5999755859375
+        target:
+        - height: 8
+          id: target
+          nodeId: unpack
+          position: left
+          type: target
+          width: 8
+          x: -4.4000244140625
+          y: 23.5999755859375
+      id: unpack
+      initialized: false
+      isParent: false
+      position:
+        x: 833.035595493631
+        y: 727.8122939822497
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1313.035595493631
+        y: 727.8122939822497
+        z: 0
+      data:
+        desc: 도구 응답 4필드. 이름과 타입이 게시 규격이다
+        display_variables:
+        - status
+        - results
+        - result_count
+        - warning
+        outputs:
+        - value_selector:
+          - unpack
+          - status
+          variable: status
+        - value_selector:
+          - unpack
+          - results
+          variable: results
+        - value_selector:
+          - unpack
+          - result_count
+          variable: result_count
+        - value_selector:
+          - unpack
+          - warning
+          variable: warning
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 종료
+        type: end
+      dimensions:
+        height: 193
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target:
+        - height: 8
+          id: target
+          nodeId: done
+          position: left
+          type: target
+          width: 8
+          x: -4.39990234375
+          y: 23.5999755859375
+      id: done
+      initialized: false
+      isParent: false
+      position:
+        x: 1313.035595493631
+        y: 727.8122939822497
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 80
+        y: -381
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 481
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 벡터 검색 (abox_search_semantic)
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 뜻이 가까운 섹션을 embedding kNN 으로 찾는 MCP 도구다. parent 단위 접기, 발췌, 출력
+                  계약은 abox_search_keyword 와 같고 child 검색만 embedding 과 kNN 으로 바꿨다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 입력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' query(필수, 뜻이 드러나는 문장), document_id(선택)'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 출력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' abox_search_keyword 와 같다. score 는 kNN 점수다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 전제
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' mode 는 workflow 다. embedding 서버 1회, ES _search 1회, _mget 1회를
+                  부른다. 1회 결과는 8,000자 이내다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: blue
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 481
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 481
+      id: note_t3_overview
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: -381
+      positionAbsolute:
+        x: 80
+        y: -381
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#eff8ff'
+        border: '1px solid #84caff'
+        height: 481px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1679.2070312515611
+        y: 490.66818985854945
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 460
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: embedding 과 kNN
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 'embed_q 가 {"input": [질의]} 를 보내고 extract_qvec 이 data[0].embedding
+                  을 꺼내 차원 수와 함께 낸다. knn 은 content_vector 에 k 50, num_candidates 500,
+                  similarity 0.35 로 child 층을 찾는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: similarity 하한이 없으면 색인에 없는 내용에도 최근접 50건이 돌아와 no_results 가 나오지
+                  않는다. 0.35 는 선행 자산 값이며 실제 embedding 모델의 유사도 분포로 다시 정한다(환경 확인 E7).
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: fold, read_parents, shape 는 abox_search_keyword 와 같은 code 본문이다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: green
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 460
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 460
+      id: note_t3_flow
+      initialized: false
+      isParent: false
+      position:
+        x: 1679.2070312515611
+        y: 490.66818985854945
+      positionAbsolute:
+        x: 840
+        y: 459
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#ecfdf3'
+        border: '1px solid #75e0a7'
+        height: 460px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 2159.207031251561
+        y: 28.668189858549454
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 922
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 함정 주의
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: embedding 실패는 error 다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' extract_qvec 에 default-value(qvec 빈 배열, qvec_dims 0)를 걸었다.
+                  knn 은 빈 query_vector 로 400 을 받고 default-value 가 흡수하며, shape 가 qvec_dims
+                  0 을 먼저 보고 embedding_unavailable 을 낸다. cosine 은 크기 0 벡터를 거절하므로 0
+                  벡터 자리표시자는 쓸 수 없다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 1
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 차원이 1024 여야 한다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' content_vector.dims 와 embedding 출력 차원이 다르면 kNN 이 오류 또는 0건이다(환경
+                  확인 E5).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 1
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: model 필드를 보내지 않는다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 선행 자산과 코어가 {"input": [...]} 만 보낸다. 서버가 model 을 요구하면 EMBED_MODEL
+                  환경변수를 추가한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 1
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: qvec 출력 크기.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 숫자 1,024개 배열이라 배포 이미지의 CODE_MAX_NUMBER_ARRAY_LENGTH 가 표준 Dify
+                  기본값 1,000 이면 실행에서 실패한다(환경 확인 E8).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 1
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: qvec 정밀도.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' code 노드 출력 검사는 소수 자릿수가 CODE_MAX_PRECISION(기본 20)을 넘는 실수를 거절한다.
+                  float32 에서 온 성분은 1e-4 보다 작을 때 21자리가 되기 쉬워 extract_qvec 이 성분을 소수
+                  12자리로 반올림한다. cosine 값에는 영향이 없다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 1
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: _mget docs 형식, 자리표시자, 단일 인덱스 전제는 abox_search_keyword 와 같다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 1
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            textFormat: 1
+            type: root
+            version: 1
+        theme: red
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 922
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 922
+      id: note_t3_traps
+      initialized: false
+      isParent: false
+      position:
+        x: 2159.207031251561
+        y: 28.668189858549454
+      positionAbsolute:
+        x: 1320
+        y: -3
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fdf2fa'
+        border: '1px solid #faa7e0'
+        height: 922px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1679.2070312515611
+        y: -241.33181014145055
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 712
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 사전 점검 gate
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: prep 이 환경변수와 인자를 점검해 config_error 와 arg_error 를 낸다. gate 는 둘
+                  다 빈 값일 때만(and) ok 갈래의 조회로 보내고, 나머지는 false 갈래의 precheck_fail 로 보낸다.
+                  precheck_fail 은 외부 호출 없이 끝나며 config_error 가 있으면 status error, 없으면
+                  invalid_arguments 다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 인자 점검.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' query 가 비면 query_empty 로 끝낸다. 1,000자를 넘는 질의는 잘라서 조회하고 query_truncated
+                  를 싣는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 분기 노드 규칙.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' gate 에는 default-value 를 걸 수 없다. false 엣지를 빠뜨리면 점검 실패 때 흐름이
+                  조용히 멈춘다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 한 end 로 모으는 방법.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 두 갈래가 같은 이름의 object(payload)를 내고 merge(variable-aggregator)가
+                  실행된 쪽을 고른다. unpack 이 end 출력으로 펼치므로 end 는 하나이고 게시 규격이 두 갈래에서 같다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 점검 한계.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 빈 값과 CHANGE-ME 는 잡지만 틀린 값(오타)은 잡지 못한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: purple
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 712
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 712
+      id: note_t3_gate
+      initialized: false
+      isParent: false
+      position:
+        x: 1679.2070312515611
+        y: -241.33181014145055
+      positionAbsolute:
+        x: 840
+        y: -273
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#f3e8ff'
+        border: '1px solid #e9d5ff'
+        height: 712px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 2159.207031251561
+        y: -787.3318101414505
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 796
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: CHANGE-ME 교체 안내
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 가져오기 뒤 앱 설정의 환경변수 5개를 실제 값으로 바꾼다. 초기값은 모두 CHANGE-ME 이며, 그대로
+                  두면 조회 없이 status error 로 끝난다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_BASE_URL
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) Elasticsearch 주소. 끝에 슬래시를 붙이지 않는다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_INDEX
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) 표준 계층 색인 v2.0 KB 인덱스명. 단일 인덱스 또는 단일 인덱스를 가리키는 alias'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_AUTH_HEADER
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (secret) Authorization 헤더 값(ApiKey ... 또는 Basic ...). 인증 없는
+                  ES 면 빈 문자열. secret 이라 DSL 을 내보내면 값이 비워진다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: TENANT_ID
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) 다중 테넌트 색인의 tenant_id 값. 빈 문자열이면 tenant 조건을 걸지 않는다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: EMBED_BASE_URL
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) embedding 서버 주소. POST {EMBED_BASE_URL}/v1/embeddings
+                  로 호출한다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ES_AUTH_HEADER 와 TENANT_ID 는 빈 문자열을 허용한다. 인증 없는 ES 이거나 단일 테넌트
+                  색인이면 CHANGE-ME 를 지우고 빈 값으로 둔다. 같은 값을 다른 abox 앱에도 따로 넣는다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: yellow
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 796
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 796
+      id: note_t3_changeme
+      initialized: false
+      isParent: false
+      position:
+        x: 2159.207031251561
+        y: -787.3318101414505
+      positionAbsolute:
+        x: 1320
+        y: -819
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fefbe8'
+        border: '1px solid #fde272'
+        height: 796px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0
+  rag_pipeline_variables: []

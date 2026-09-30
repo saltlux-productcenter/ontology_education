@@ -1,0 +1,46 @@
+version: 0.1.0
+kind: agent-studio-tool
+tool:
+  type: node_config
+  source_id: 4311cbbb-ac28-4f2c-99a5-3bcd9a45310f
+  resource_type: llm
+  node_config:
+    name: completion
+    label: luxia4-preview-aws
+    icon: ri-brain-line
+    icon_bg: indigo
+    description: AWS에 배포된 모델
+    node_group: 모델
+    depth: 0
+    sort_order: 0
+    type: completion-template
+    node_json:
+      variables: []
+      method: post
+      url: http://13.231.203.235:32716/v1/chat/completions
+      authorization:
+        type: no-auth
+        config: null
+      headers: Content-Type:application/json
+      params: ''
+      body:
+        type: json
+        data:
+        - id: key-value-1
+          key: ''
+          type: text
+          value: '{"platform":"chat-api","stream":false,"temperature":1,"top_p":0.95,"top_k":20,"frequency_penalty":0,"repetition_penalty":1,"presence_penalty":0,"max_completion_tokens":32768}'
+    config_json:
+      schema_version: 2
+      platform: chat-api
+      base_url: http://13.231.203.235:32716/v1
+      model: ''
+      api_key: ''
+      params:
+        temperature: 1
+        top_p: 0.95
+        max_tokens: 32768
+        top_k: 20
+        frequency_penalty: 0
+        repetition_penalty: 1
+        presence_penalty: 0

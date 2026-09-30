@@ -1,0 +1,282 @@
+app:
+  description: 오라클 데이터베이스를 접근해서 sql문을 생성하고, 데이터를 조회합니다.
+  icon: ri-git-merge-line
+  icon_background: '#14b8a6'
+  mode: workflow
+  name: sql_run
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: sql-query
+      id: 1790087843576-source-1790087876744-target
+      label: ''
+      source: '1790087843576'
+      sourceHandle: source
+      target: '1790087876744'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: sql-query
+        targetType: end
+      id: 1790087876744-source-1790088069082-target
+      label: ''
+      source: '1790087876744'
+      sourceHandle: source
+      target: '1790088069082'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - computedPosition:
+        x: 0
+        y: 0
+        z: 1003
+      data:
+        desc: ''
+        display_variables:
+        - sql_query
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        selected: false
+        title: 시작
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: sql_query
+          max_length: 100000
+          options: []
+          placeholder: ''
+          required: true
+          select_type: ''
+          type: text-input
+          variable: sql_query
+      dimensions:
+        height: 126
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: '1790087843576'
+          position: right
+          type: source
+          width: 8
+          x: 276.93333435058594
+          y: 23.066665649414062
+        target: null
+      id: '1790087843576'
+      initialized: false
+      isParent: false
+      position:
+        x: 0
+        y: 0
+      resizing: false
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      zIndex: 1003
+    - computedPosition:
+        x: 340
+        y: 0
+        z: 2004
+      data:
+        body:
+          data: []
+          type: none
+        break_conditions: []
+        cases: []
+        code: ''
+        code_language: python3
+        database: FREEPDB1
+        db_type: oracle
+        desc: ''
+        entries: []
+        extract_by:
+          enabled: false
+          serial: '1'
+        filter_by:
+          conditions: []
+          enabled: false
+        host: 192.168.250.101
+        input_mapping: []
+        items: []
+        limit:
+          enabled: false
+          size: -1
+        loop_variables: []
+        max_rows: 20
+        oracle_connection_mode: service_name
+        order_by:
+          enabled: false
+          key: ''
+          value: asc
+        output_keys: []
+        output_vars: []
+        outputs: {}
+        paramSchemas: []
+        parameters: []
+        password: t2sql
+        password_input_type: constant
+        password_value_selector: []
+        port: 11521
+        query: '{{#1790087843576.sql_query#}}'
+        query_is_plain_text: true
+        query_timeout: 30
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        selected: false
+        timeout:
+          connect: 0
+          read: 0
+          write: 0
+        title: SQL 쿼리
+        tool_configurations: {}
+        type: sql-query
+        username: T2SQL_BIRD
+        variables: []
+        workflow_id: ''
+      dimensions:
+        height: 92
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: '1790087876744'
+          position: right
+          type: source
+          width: 8
+          x: 276.9333190917969
+          y: 23.066665649414062
+        target:
+        - height: 8
+          id: target
+          nodeId: '1790087876744'
+          position: left
+          type: target
+          width: 8
+          x: -4.933349609375
+          y: 23.066665649414062
+      id: '1790087876744'
+      initialized: false
+      isParent: false
+      position:
+        x: 340
+        y: 0
+      resizing: false
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      zIndex: 1004
+    - computedPosition:
+        x: 692
+        y: 0
+        z: 1005
+      data:
+        body:
+          data: []
+        desc: ''
+        display_variables:
+        - result
+        outputs:
+        - value_selector:
+          - '1790087876744'
+          - rows
+          value_type: array[object]
+          variable: result
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        selected: true
+        title: 끝
+        type: end
+      dimensions:
+        height: 115
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target:
+        - height: 8
+          id: target
+          nodeId: '1790088069082'
+          position: left
+          type: target
+          width: 8
+          x: -4.933349609375
+          y: 23.066665649414062
+      id: '1790088069082'
+      initialized: false
+      isParent: false
+      position:
+        x: 692
+        y: 0
+      resizing: false
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      zIndex: 1005
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0
+  rag_pipeline_variables: []

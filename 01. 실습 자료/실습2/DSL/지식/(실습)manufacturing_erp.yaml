@@ -1,0 +1,11 @@
+version: 0.1.0
+kind: agent-studio-tool
+tool:
+  type: knowledge
+  source_id: e9c10f85-e719-4894-8f1b-4fea72f0ffec
+  resource_type: knowledge
+  knowledge:
+    name: (실습)manufacturing_erp
+    description: 제조 ERP 업무에 사용되는 제품, 자재, 작업지시, 검사, 조직 등의 개념과 관계를 정의한 온톨로지 지식
+    index_source: external
+    index_name: manufacturing_erp

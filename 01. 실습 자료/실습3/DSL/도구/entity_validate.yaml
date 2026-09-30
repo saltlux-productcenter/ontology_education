@@ -1,0 +1,2465 @@
+app:
+  description: 추출한 엔티티가 원문에 근거하는지 확인하고 클래스, 속성, 관계의 적합성과 중복 여부를 검증
+  icon: ri-git-merge-line
+  icon_background: '#14b8a6'
+  mode: workflow
+  name: entity_validate
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Elasticsearch 주소. 끝에 슬래시를 붙이지 않는다
+    id: 47221646-da7c-e90a-f0ac-fa04e3c38d06
+    name: ES_BASE_URL
+    selector:
+    - env
+    - ES_BASE_URL
+    value: http://192.168.250.101:19200
+    value_type: string
+  - description: 표준 계층 색인 v2.0 KB 인덱스명. 단일 인덱스 또는 단일 인덱스를 가리키는 alias
+    id: baded43b-f365-53d5-72ef-ddde34ef82ad
+    name: ES_INDEX
+    selector:
+    - env
+    - ES_INDEX
+    value: manufacturing_erp
+    value_type: string
+  - description: Authorization 헤더 값(ApiKey ... 또는 Basic ...). 인증 없는 ES 면 빈 문자열. secret
+      이라 DSL 을 내보내면 값이 비워진다
+    id: 6fd13c7c-f68b-693e-7473-ec0e656b0709
+    name: ES_AUTH_HEADER
+    selector:
+    - env
+    - ES_AUTH_HEADER
+    value: ''
+    value_type: secret
+  - description: 다중 테넌트 색인의 tenant_id 값. 빈 문자열이면 tenant 조건을 걸지 않는다
+    id: 5affa868-a237-b703-9e1c-e27ef9172cfb
+    name: TENANT_ID
+    selector:
+    - env
+    - TENANT_ID
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: start-source-prep-target
+      label: ''
+      source: start
+      sourceHandle: source
+      target: prep
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: fetch_evidence-source-judge-target
+      label: ''
+      selected: false
+      source: fetch_evidence
+      sourceHandle: source
+      target: judge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: prep-source-gate-target
+      label: ''
+      source: prep
+      sourceHandle: source
+      target: gate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate-ok-fetch_evidence-target
+      label: ''
+      source: gate
+      sourceHandle: ok
+      target: fetch_evidence
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: gate-false-precheck_fail-target
+      label: ''
+      source: gate
+      sourceHandle: 'false'
+      target: precheck_fail
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: judge-source-merge-target
+      label: ''
+      selected: false
+      source: judge
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: precheck_fail-source-merge-target
+      label: ''
+      selected: false
+      source: precheck_fail
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: code
+      id: merge-source-unpack-target
+      label: ''
+      selected: false
+      source: merge
+      sourceHandle: source
+      target: unpack
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: end
+      id: unpack-source-done-target
+      label: ''
+      selected: false
+      source: unpack
+      sourceHandle: source
+      target: done
+      targetHandle: target
+      type: custom
+    nodes:
+    - computedPosition:
+        x: 80
+        y: 140
+        z: 0
+      data:
+        desc: instances 와 extraction_spec 을 받는다. 둘 다 필수이며 원소 구조는 인자 설명에만 있다
+        display_variables:
+        - instances
+        - extraction_spec
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 인자 받기
+        type: start
+        variables:
+        - default: ''
+          description: '판정할 후보 인스턴스의 JSON 배열이다. 원소는 객체이며 필드는 temp_id(배치 안에서 유일한 문자열),
+            class(extraction_spec.classes 의 name), label(원문 표기의 이름), aliases(선택, 문자열
+            배열), attributes(선택, 배열: property, value, unit, evidence), relations(선택,
+            배열: property 와 target_temp_id, 또는 property 와 target_class·target_label,
+            그리고 evidence), evidence(필수, 배열: chunk_id, quote, 선택 document_id), cq_refs(선택,
+            cq_id 배열), confidence(0에서 1 사이 숫자)다. evidence 의 chunk_id 는 인용문을 복사한 도구
+            결과 항목의 chunk_id 를 그대로 쓰고, quote 는 그 항목 text 에서 연속된 구절 하나를 한 글자도 바꾸지 않고
+            복사한다. 기호와 공백을 뺀 quote 가 8자 이상이어야 한다. 여러 구절을 생략 부호로 잇지 않는다. attributes
+            와 relations 의 evidence 가 비어 있으면 인스턴스의 evidence 를 쓴다. unit 은 원문 표기 그대로
+            쓰고 환산하지 않는다. 한 번에 최대 15건이다. 예시 1: [{"temp_id":"t1","class":"대출규정","label":"일반자료
+            대출","evidence":[{"chunk_id":"doc-2026-library-rules-001:v3:parent:0004","quote":"일반자료는
+            1인 5책까지 14일 동안 대출할 수 있다"}],"attributes":[{"property":"대출기간","value":"14","unit":"일","evidence":[]}],"relations":[{"property":"적용대상","target_class":"이용자","target_label":"정회원","evidence":[]}],"cq_refs":["CQ1"],"confidence":0.9}].
+            예시 2: [{"temp_id":"t2","class":"대출규정","label":"연체료 부과","evidence":[{"chunk_id":"doc-2026-library-rules-001:v3:parent:0006","quote":"제12조(연체료의
+            부과)"}],"attributes":[{"property":"연체료","value":"100","unit":"원","evidence":[{"chunk_id":"doc-2026-library-rules-001:v3:child:0031","quote":"반납
+            예정일을 넘긴 자료 1책당 1일 100원의 연체료를 부과한다"}]}],"confidence":0.85}]. 도구 결과에 있는
+            chunk_id 와 원문 구절만 쓰고 근거나 값을 지어내지 않는다.'
+          label: 후보 인스턴스
+          required: true
+          type: array
+          variable: instances
+        - default: ''
+          description: '추출 명세 JSON 객체다. classes(필수, 배열: name, label_ko, definition,
+            aliases, parent), properties(필수, 배열: name, kind, domain, range, unit_expected),
+            cq_map(선택, 배열: cq_id, question, answer_class, required_properties)으로 이뤄진다.
+            kind 는 attribute 또는 relation 이다. domain 은 클래스 name 또는 그 배열이다. range 는
+            relation 이면 클래스 name 또는 그 배열이고, attribute 면 string, number, date, boolean
+            가운데 하나다. unit_expected 는 허용 단위 문자열 또는 그 배열이다. parent 는 상위 클래스 name 이며
+            domain 과 range 판정에서 하위 클래스를 허용하는 데 쓴다. 한 작업 안에서는 처음 만든 명세를 바꾸지 않고 매 호출에
+            같은 값을 넣는다. 예시 1: {"classes":[{"name":"대출규정","label_ko":"대출 규정","definition":"자료
+            대출의 조건과 기간을 정한 규정","aliases":["대출 기준"]},{"name":"이용자","label_ko":"이용자","definition":"도서관
+            자료를 대출하거나 열람하는 사람","aliases":["회원"]}],"properties":[{"name":"대출기간","kind":"attribute","domain":"대출규정","range":"number","unit_expected":["일"]},{"name":"적용대상","kind":"relation","domain":"대출규정","range":"이용자"}],"cq_map":[{"cq_id":"CQ1","question":"일반자료의
+            대출기간은 며칠인가","answer_class":"대출규정","required_properties":["대출기간"]}]}. 예시
+            2: {"classes":[{"name":"대출규정","label_ko":"대출 규정","definition":"자료 대출의
+            조건과 기간을 정한 규정","aliases":[]},{"name":"자료","label_ko":"자료","definition":"도서관이
+            소장한 도서와 매체","aliases":["소장 자료"]},{"name":"향토자료","label_ko":"향토 자료","definition":"지역의
+            역사와 문화를 기록한 자료","aliases":[],"parent":"자료"}],"properties":[{"name":"연체료","kind":"attribute","domain":"대출규정","range":"number","unit_expected":"원"},{"name":"소장처","kind":"attribute","domain":"자료","range":"string"}],"cq_map":[{"cq_id":"CQ2","question":"연체료는
+            하루에 얼마인가","answer_class":"대출규정","required_properties":["연체료"]}]}. 사용자가
+            준 CQ 와 ORSD 에서 도출한 클래스와 속성만 쓰고 명세를 지어내거나 호출마다 바꾸지 않는다.'
+          label: 추출 명세
+          required: true
+          type: object
+          variable: extraction_spec
+      dimensions:
+        height: 164
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: start
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.800018310546875
+        target: null
+      id: start
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 460
+        y: 140
+        z: 0
+      data:
+        code: "\nWARN = {'spec_invalid': ['extraction_spec 의 classes 가 비었거나 properties\
+          \ 가 배열이 아니다', '인자 설명의 구조대로 extraction_spec 을 고쳐 다시 호출한다'], 'too_many_instances':\
+          \ ['instances 가 {n}건으로 상한 15건을 넘는다', '15건 이하로 나눠 호출한다'], 'no_evidence_supplied':\
+          \ ['chunk_id 가 있는 evidence 가 하나도 없다', '검색·조회 도구로 근거를 먼저 확보하고 evidence 를\
+          \ 채워 다시 호출한다'], 'too_many_evidence_chunks': ['서로 다른 근거 chunk_id 가 {n}개로\
+          \ 상한 60개를 넘는다', '배치를 나눠 호출한다'], 'evidence_fetch_failed': ['근거 chunk 조회(_mget)가\
+          \ 실패해 판정하지 않았다(HTTP {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'result_trimmed':\
+          \ ['결과 길이 상한 8,000자에 맞춰 issue 를 빼거나 cq_coverage 의 instance_ids 를 1건으로 줄였다(뺀\
+          \ issue {n}건)', '빠진 issue 는 decisions 의 issue_codes 와 issue_total 로 확인하고,\
+          \ 고친 뒤 다시 호출하면 남은 issue 가 나온다'], 'es_base_url_missing': ['환경변수 ES_BASE_URL\
+          \ 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시\
+          \ 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX 가 비었거나 CHANGE-ME\
+          \ 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'],\
+          \ 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가 CHANGE-ME 로 남아 있어 조회하지\
+          \ 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'tenant_id_missing':\
+          \ ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라\
+          \ 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\ndef _to_int(value):\n    try:\n \
+          \       return int(value)\n    except Exception:\n        return 0\n\n\n\
+          def _parse_json(raw):\n    import json\n    if isinstance(raw, (dict, list)):\n\
+          \        return raw\n    if not raw:\n        return None\n    try:\n  \
+          \      return json.loads(raw)\n    except Exception:\n        return None\n\
+          \n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\nCONFIG_CHECKS = [['es_base_url', 'es_base_url_missing',\
+          \ True], ['es_index', 'es_index_missing', True], ['es_auth_header', 'es_auth_header_missing',\
+          \ False], ['tenant_id', 'tenant_id_missing', False]]\n\n\ndef _config_error(values):\n\
+          \    missing = []\n    for name, code, empty_is_unset in CONFIG_CHECKS:\n\
+          \        raw = values.get(name)\n        text = str(raw if raw is not None\
+          \ else \"\").strip()\n        if (not text and empty_is_unset) or text.startswith(\"\
+          CHANGE-ME\"):\n            missing.append(_wtext(code))\n    return \";\
+          \ \".join(missing)\n\n\ndef _level_filters(level, tenant_id):\n    filters\
+          \ = [{\"term\": {\"chunk_level\": level}},\n               {\"term\": {\"\
+          is_latest\": True}},\n               {\"term\": {\"lifecycle_state\": \"\
+          active\"}}]\n    tenant = str(tenant_id if tenant_id is not None else \"\
+          \").strip()\n    if tenant and not tenant.startswith(\"CHANGE-ME\"):\n \
+          \       filters.append({\"term\": {\"tenant_id\": tenant}})\n    return\
+          \ filters\n\ndef main(instances, extraction_spec, es_base_url, es_index,\
+          \ es_auth_header, tenant_id):\n    MAX_INSTANCES = 15\n    MAX_CHUNKS =\
+          \ 60\n    SOURCE_FIELDS = ['chunk_id', 'document_id', 'chunk_level', 'parent_chunk_id',\
+          \ 'doc_version', 'is_latest', 'lifecycle_state', 'tenant_id', 'title', 'page_start',\
+          \ 'page_end', 'content']\n    NO_CANDIDATES_ID = '__no_candidates__'\n\n\
+          \    config_error = _config_error({\"es_base_url\": es_base_url, \"es_index\"\
+          : es_index,\n                                  \"es_auth_header\": es_auth_header,\
+          \ \"tenant_id\": tenant_id})\n    errors = []\n    spec = extraction_spec\
+          \ if isinstance(extraction_spec, dict) else {}\n    classes = spec.get(\"\
+          classes\")\n    properties = spec.get(\"properties\")\n    if not isinstance(classes,\
+          \ list) or not classes or not isinstance(properties, list):\n        errors.append(_wtext(\"\
+          spec_invalid\"))\n    items = instances if isinstance(instances, list) else\
+          \ []\n    if len(items) > MAX_INSTANCES:\n        errors.append(_wtext(\"\
+          too_many_instances\", n=len(items)))\n\n    chunk_ids = []\n\n    def collect(evidence):\n\
+          \        if not isinstance(evidence, list):\n            return\n      \
+          \  for entry in evidence:\n            if not isinstance(entry, dict):\n\
+          \                continue\n            value = entry.get(\"chunk_id\")\n\
+          \            chunk_id = str(value).strip() if value is not None else \"\"\
+          \n            if chunk_id and chunk_id not in chunk_ids:\n             \
+          \   chunk_ids.append(chunk_id)\n\n    for item in items:\n        if not\
+          \ isinstance(item, dict):\n            continue\n        collect(item.get(\"\
+          evidence\"))\n        for key in (\"attributes\", \"relations\"):\n    \
+          \        entries = item.get(key)\n            if isinstance(entries, list):\n\
+          \                for entry in entries:\n                    if isinstance(entry,\
+          \ dict):\n                        collect(entry.get(\"evidence\"))\n   \
+          \ if not chunk_ids:\n        errors.append(_wtext(\"no_evidence_supplied\"\
+          ))\n    elif len(chunk_ids) > MAX_CHUNKS:\n        errors.append(_wtext(\"\
+          too_many_evidence_chunks\", n=len(chunk_ids)))\n    chunk_ids.sort()\n \
+          \   mget_docs = [{\"_id\": chunk_id, \"_source\": list(SOURCE_FIELDS)} for\
+          \ chunk_id in chunk_ids[:MAX_CHUNKS]]\n    if not mget_docs:\n        mget_docs\
+          \ = [{\"_id\": NO_CANDIDATES_ID, \"_source\": [\"chunk_id\"]}]\n    return\
+          \ {\"mget_docs\": mget_docs, \"evidence_chunk_count\": len(chunk_ids),\n\
+          \            \"config_error\": config_error, \"arg_error\": \"; \".join(errors)}\n"
+        code_language: python3
+        desc: 배치 단위 거절 4종과 환경변수를 점검하고, 서로 다른 근거 chunk_id 를 모아 _mget docs 를 만든다
+        outputs:
+          arg_error:
+            children: null
+            type: string
+          config_error:
+            children: null
+            type: string
+          evidence_chunk_count:
+            children: null
+            type: number
+          mget_docs:
+            children: null
+            type: array[object]
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 입력 점검·근거 chunk 목록 조립
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - instances
+          variable: instances
+        - value_selector:
+          - start
+          - extraction_spec
+          variable: extraction_spec
+        - value_selector:
+          - env
+          - ES_BASE_URL
+          variable: es_base_url
+        - value_selector:
+          - env
+          - ES_INDEX
+          variable: es_index
+        - value_selector:
+          - env
+          - ES_AUTH_HEADER
+          variable: es_auth_header
+        - value_selector:
+          - env
+          - TENANT_ID
+          variable: tenant_id
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: prep
+          position: right
+          type: source
+          width: 8
+          x: 277.20001220703125
+          y: 22.800018310546875
+        target:
+        - height: 8
+          id: target
+          nodeId: prep
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.800018310546875
+      id: prep
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 140
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"docs": "{{#prep.mget_docs#}}"}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: _mget docs 형식. 판정에 쓸 is_latest, lifecycle_state, tenant_id 를 함께 받는다
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8
+
+          Authorization:{{#env.ES_AUTH_HEADER#}}'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: 근거 chunk 조회
+        type: http-request
+        url: '{{#env.ES_BASE_URL#}}/{{#env.ES_INDEX#}}/_mget'
+        variables: []
+      dimensions:
+        height: 139
+        width: 304
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: fetch_evidence
+          position: right
+          type: source
+          width: 8
+          x: 301.5374755859375
+          y: 22.800018310546875
+        target:
+        - height: 8
+          id: target
+          nodeId: fetch_evidence
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.800018310546875
+      id: fetch_evidence
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1315.405206580012
+        y: 513.3050382611503
+        z: 0
+      data:
+        code: "\nWARN = {'spec_invalid': ['extraction_spec 의 classes 가 비었거나 properties\
+          \ 가 배열이 아니다', '인자 설명의 구조대로 extraction_spec 을 고쳐 다시 호출한다'], 'too_many_instances':\
+          \ ['instances 가 {n}건으로 상한 15건을 넘는다', '15건 이하로 나눠 호출한다'], 'no_evidence_supplied':\
+          \ ['chunk_id 가 있는 evidence 가 하나도 없다', '검색·조회 도구로 근거를 먼저 확보하고 evidence 를\
+          \ 채워 다시 호출한다'], 'too_many_evidence_chunks': ['서로 다른 근거 chunk_id 가 {n}개로\
+          \ 상한 60개를 넘는다', '배치를 나눠 호출한다'], 'evidence_fetch_failed': ['근거 chunk 조회(_mget)가\
+          \ 실패해 판정하지 않았다(HTTP {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'result_trimmed':\
+          \ ['결과 길이 상한 8,000자에 맞춰 issue 를 빼거나 cq_coverage 의 instance_ids 를 1건으로 줄였다(뺀\
+          \ issue {n}건)', '빠진 issue 는 decisions 의 issue_codes 와 issue_total 로 확인하고,\
+          \ 고친 뒤 다시 호출하면 남은 issue 가 나온다'], 'es_base_url_missing': ['환경변수 ES_BASE_URL\
+          \ 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시\
+          \ 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX 가 비었거나 CHANGE-ME\
+          \ 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'],\
+          \ 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가 CHANGE-ME 로 남아 있어 조회하지\
+          \ 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'tenant_id_missing':\
+          \ ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라\
+          \ 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\ndef _to_int(value):\n    try:\n \
+          \       return int(value)\n    except Exception:\n        return 0\n\n\n\
+          def _parse_json(raw):\n    import json\n    if isinstance(raw, (dict, list)):\n\
+          \        return raw\n    if not raw:\n        return None\n    try:\n  \
+          \      return json.loads(raw)\n    except Exception:\n        return None\n\
+          \n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\ndef main(evidence_body, evidence_status, instances,\
+          \ extraction_spec, tenant_id):\n    import hashlib\n    import json\n  \
+          \  import re\n    import unicodedata\n\n    QUOTE_MIN_CHARS = 8\n    REVIEW_CONFIDENCE_MIN\
+          \ = 0.6\n    ISSUE_OUTPUT_MAX = 15\n    CQ_INSTANCE_IDS_MAX = 3\n    ID_HASH_LEN\
+          \ = 16\n    SPEC_HASH_LEN = 12\n    CHAIN_MAX = 20\n    TARGET = 7800\n\
+          \    ISSUE_DEFS = {'instance_not_object': ['error', '원소가 객체가 아니다', '원소는\
+          \ 객체로 넣는다'], 'missing_field': ['error', '필수 필드 {v} 가 비었다', 'temp_id, class,\
+          \ label, evidence 를 채운다'], 'duplicate_temp_id': ['error', 'temp_id {v} 가\
+          \ 앞 원소와 같다', 'temp_id 를 배치 안에서 유일하게 바꾼다'], 'class_not_in_spec': ['error',\
+          \ 'class {v} 가 extraction_spec.classes 에 없다', 'extraction_spec.classes 의\
+          \ name 으로 바꾸거나 원소를 뺀다'], 'class_alias_resolved': ['warning', 'class 별칭을\
+          \ name 으로 해석했다({v})', '최종 JSON 에는 decisions 의 class 를 쓴다'], 'no_grounded_evidence':\
+          \ ['error', '원문에서 확인된 근거가 하나도 없다', '근거 issue 를 고쳐 다시 호출하거나 원소를 뺀다'], 'evidence_missing_fields':\
+          \ ['error', '근거에 chunk_id 나 quote 가 없다', 'evidence 마다 chunk_id 와 quote 를\
+          \ 함께 넣는다'], 'chunk_not_found': ['error', 'chunk_id {v} 가 색인에 없다', '도구 결과의\
+          \ chunk_id 를 한 글자도 바꾸지 않고 복사한다'], 'chunk_not_latest': ['error', 'chunk {v}\
+          \ 는 최신판이 아니다', '구판 chunk 다. 검색 도구로 다시 찾아 최신판 chunk_id 로 바꾼다'], 'chunk_inactive':\
+          \ ['error', 'chunk {v} 는 삭제 처리된 문서다', '다른 근거를 찾거나 항목을 뺀다'], 'chunk_out_of_scope':\
+          \ ['error', 'chunk {v} 는 조회 범위(tenant) 밖이다', '이 도구들의 결과에서 얻은 chunk_id 만\
+          \ 쓴다'], 'quote_too_short': ['error', '기호와 공백을 뺀 인용문이 {v}자라 너무 짧다', '기호를\
+          \ 뺀 8자 이상의 연속 구절을 인용한다'], 'quote_not_found': ['error', '인용문이 chunk {v} 원문에\
+          \ 없다', '인용문을 복사한 결과 항목의 chunk_id 를 쓰고, 그 항목 text 의 연속 구절 하나를 그대로 복사한다'],\
+          \ 'evidence_document_mismatch': ['warning', 'document_id 가 chunk 의 문서({v})와\
+          \ 다르다', 'document_id 는 빼도 된다'], 'property_not_in_spec': ['error', 'property\
+          \ {v} 가 extraction_spec.properties 에 없다', 'extraction_spec.properties 의\
+          \ name 으로 바꾸거나 항목을 뺀다'], 'property_kind_mismatch': ['error', 'property {v}\
+          \ 의 kind 와 넣은 자리가 다르다', 'attribute 는 attributes 에, relation 은 relations\
+          \ 에 넣는다'], 'value_missing': ['error', 'value 가 비었다', 'value 를 원문 표기로 채우거나\
+          \ 항목을 뺀다'], 'attribute_ungrounded': ['error', '속성 항목의 근거가 원문에서 확인되지 않았다',\
+          \ '항목 근거를 고치거나 비워 인스턴스 근거를 쓰게 한다'], 'relation_ungrounded': ['error', '관계\
+          \ 항목의 근거가 원문에서 확인되지 않았다', '항목 근거를 고치거나 비워 인스턴스 근거를 쓰게 한다'], 'relation_target_missing':\
+          \ ['error', '관계 대상 지정이 없다', 'target_temp_id 또는 target_class 와 target_label\
+          \ 을 넣는다'], 'relation_target_unresolved': ['error', 'target_temp_id {v} 가\
+          \ 이 배치에 없다', '같은 배치의 temp_id 를 쓰거나 target_class 와 target_label 로 지정한다'],\
+          \ 'relation_target_rejected': ['error', '관계 대상 {v} 가 거절되었다', '대상 원소를 고치거나\
+          \ 관계를 뺀다'], 'relation_target_class_not_in_spec': ['error', 'target_class\
+          \ {v} 가 명세에 없다', 'target_class 를 명세의 name 으로 바꾼다'], 'domain_mismatch': ['review',\
+          \ '{v} 는 이 클래스가 가질 속성이 아니다(domain)', '이 속성을 가질 클래스가 아니다. class 를 확인하거나 검수로\
+          \ 넘긴다'], 'range_mismatch': ['review', '관계 대상 클래스 {v} 가 range 와 다르다', '대상\
+          \ 클래스가 range 와 다르다. 대상을 확인하거나 검수로 넘긴다'], 'value_type_mismatch': ['review',\
+          \ 'value {v} 가 range 형식과 맞지 않는다', 'range 형식(number, date, boolean)에 맞는 값인지\
+          \ 원문을 확인한다'], 'unit_missing': ['review', 'unit 이 비었다(허용 단위 {v})', '원문의 단위\
+          \ 표기를 unit 에 그대로 넣는다'], 'unit_unexpected': ['review', 'unit {v} 가 허용 단위가\
+          \ 아니다', '원문 표기가 맞으면 그대로 두고 검수로 넘긴다. 환산하지 않는다'], 'low_confidence': ['review',\
+          \ 'confidence {v} 가 기준 0.6 미만이다', '신뢰도 기준 미만이다. 검수 대상으로 출력한다'], 'missing_confidence':\
+          \ ['review', 'confidence 가 없거나 0~1 숫자가 아니다', 'confidence 를 0~1 숫자로 넣는다'],\
+          \ 'merge_value_conflict': ['review', '병합된 원소들의 {v} 값이 서로 다르다', '병합된 원소들의\
+          \ 같은 속성 값이 다르다. 원문을 확인한다'], 'merged_duplicate': ['warning', '{v} 와 class,\
+          \ label 이 같아 병합했다', 'merged_into 원소에 aliases, attributes, relations, evidence\
+          \ 를 합친다'], 'value_not_in_quote': ['warning', 'value 의 숫자 {v} 가 인용문에 없다',\
+          \ '값이 적힌 구절을 인용한다'], 'relation_target_external': ['warning', '관계 대상({v})이\
+          \ 이 배치에 없다', '대상 원소를 별도 호출로 판정받는다. id 는 class 와 label 로 같게 발급된다'], 'unknown_cq_ref':\
+          \ ['warning', 'cq_refs 의 {v} 가 cq_map 에 없다', 'cq_map 의 cq_id 만 쓴다'], 'cq_ref_class_mismatch':\
+          \ ['warning', '{v} 의 answer_class 와 이 원소의 class 가 다르다', '이 CQ 의 answer_class\
+          \ 와 다른 클래스다'], 'spec_unknown_class_ref': ['warning', '명세가 가리키는 클래스 {v} 가\
+          \ classes 에 없다', 'domain, range, parent, answer_class 가 가리키는 클래스를 classes\
+          \ 에 넣는다'], 'spec_alias_ambiguous': ['warning', '별칭 {v} 가 두 클래스에 걸려 쓰지 않았다',\
+          \ '한 별칭을 두 클래스에 쓰지 않는다'], 'spec_class_cycle': ['warning', 'parent 사슬이 순환한다({v})',\
+          \ 'parent 순환을 없앤다']}\n    ATTR_TYPES = (\"string\", \"number\", \"date\"\
+          , \"boolean\")\n    SEV_RANK = {\"error\": 0, \"review\": 1, \"warning\"\
+          : 2}\n    SEP = \"\\u001f\"\n    DATE_RE = re.compile(r\"^(\\d{4}-\\d{2}-\\\
+          d{2}|\\d{8}|\\d{4}\\.\\d{2}\\.\\d{2})$\")\n    NUM_RE = re.compile(r\"\\\
+          d+(?:\\.\\d+)?\")\n\n    payload = {\"status\": \"success\", \"summary\"\
+          : {}, \"decisions\": [], \"issues\": [], \"issue_total\": 0,\n         \
+          \      \"blocking_issue_count\": 0, \"cq_coverage\": [], \"warning\": \"\
+          \"}\n\n    # ---- 0) 근거 chunk 조회 결과. 실패하면 판정하지 않는다\n    data = _parse_json(evidence_body)\n\
+          \    docs = data.get(\"docs\") if isinstance(data, dict) else None\n   \
+          \ if _http_failed(evidence_status, data) or not isinstance(docs, list):\n\
+          \        payload[\"status\"] = \"error\"\n        payload[\"warning\"] =\
+          \ _wtext(\"evidence_fetch_failed\", code=_to_int(evidence_status))\n   \
+          \     return {\"payload\": payload}\n\n    # ---- 정규화 함수\n    def as_text(value):\n\
+          \        if value is None:\n            return \"\"\n        if isinstance(value,\
+          \ bool):\n            return \"true\" if value else \"false\"\n        return\
+          \ value if isinstance(value, str) else str(value)\n\n    def nfkc(value):\n\
+          \        return unicodedata.normalize(\"NFKC\", as_text(value))\n\n    def\
+          \ norm_space(value):\n        return re.sub(r\"\\s+\", \" \", nfkc(value)).strip()\n\
+          \n    def norm_key(value):\n        out = []\n        for char in nfkc(value).casefold():\n\
+          \            if char.isspace():\n                continue\n            if\
+          \ unicodedata.category(char)[:1] in (\"P\", \"S\") and char not in \".%\"\
+          :\n                continue\n            out.append(char)\n        return\
+          \ \"\".join(out)\n\n    def digits(value):\n        return NUM_RE.findall(norm_key(value))\n\
+          \n    def as_list(value):\n        return value if isinstance(value, list)\
+          \ else []\n\n    def name_list(value):\n        out = []\n        for item\
+          \ in (value if isinstance(value, list) else [value]):\n            text\
+          \ = norm_space(item)\n            if text and text not in out:\n       \
+          \         out.append(text)\n        return out\n\n    def dedup(values):\n\
+          \        out = []\n        for value in values:\n            if value not\
+          \ in out:\n                out.append(value)\n        return out\n\n   \
+          \ # ---- issue 기록. 정렬 키는 [severity 순위, 원소 순번, 기록 순서]\n    issue_rows = []\n\
+          \n    def add_issue(code, owner, path, value=\"\"):\n        severity, message,\
+          \ hint = ISSUE_DEFS[code]\n        text = message.replace(\"{v}\", as_text(value))[:80]\n\
+          \        issue_rows.append([SEV_RANK.get(severity, 3),\n               \
+          \            owner[\"index\"] if owner is not None else -1,\n          \
+          \                 len(issue_rows),\n                           {\"code\"\
+          : code, \"severity\": severity,\n                            \"temp_id\"\
+          : owner[\"temp_id\"] if owner is not None else \"\",\n                 \
+          \           \"path\": path, \"message\": text, \"hint\": hint}])\n     \
+          \   if owner is not None and code not in owner[\"codes\"]:\n           \
+          \ owner[\"codes\"].append(code)\n\n    # ---- 1) 근거 chunk 색인\n    chunks\
+          \ = {}\n    for doc in docs:\n        if not isinstance(doc, dict) or not\
+          \ doc.get(\"found\"):\n            continue\n        src = doc.get(\"_source\"\
+          ) if isinstance(doc.get(\"_source\"), dict) else {}\n        chunk_id =\
+          \ as_text(doc.get(\"_id\")).strip()\n        if chunk_id:\n            chunks[chunk_id]\
+          \ = {\"key\": norm_key(src.get(\"content\")),\n                        \
+          \        \"document_id\": as_text(src.get(\"document_id\")).strip(),\n \
+          \                               \"latest\": src.get(\"is_latest\") in (True,\
+          \ \"true\"),\n                                \"state\": as_text(src.get(\"\
+          lifecycle_state\")).strip(),\n                                \"tenant\"\
+          : as_text(src.get(\"tenant_id\")).strip()}\n    tenant = as_text(tenant_id).strip()\n\
+          \n    # ---- 2) 명세 정규화: 클래스, 별칭 색인, parent 사슬, 속성, CQ, 명세 지문\n    spec =\
+          \ extraction_spec if isinstance(extraction_spec, dict) else {}\n    classes\
+          \ = {}\n    class_pos = {}\n    for position, item in enumerate(as_list(spec.get(\"\
+          classes\"))):\n        if not isinstance(item, dict):\n            continue\n\
+          \        name = norm_space(item.get(\"name\"))\n        if name and name\
+          \ not in classes:\n            classes[name] = item\n            class_pos[name]\
+          \ = position\n\n    alias_owner = {}\n    alias_label = {}\n    alias_bad\
+          \ = []\n    for name, item in classes.items():\n        for label in [name,\
+          \ item.get(\"label_ko\")] + as_list(item.get(\"aliases\")):\n          \
+          \  key = norm_key(label)\n            if not key:\n                continue\n\
+          \            owner = alias_owner.get(key)\n            if owner is None:\n\
+          \                alias_owner[key] = name\n                alias_label[key]\
+          \ = norm_space(label)\n            elif owner != name and key not in alias_bad:\n\
+          \                alias_bad.append(key)\n    for key in alias_bad:\n    \
+          \    alias_owner.pop(key, None)\n        add_issue(\"spec_alias_ambiguous\"\
+          , None, \"extraction_spec.classes\", alias_label.get(key, key))\n\n    def\
+          \ resolve_class(value):\n        text = norm_space(value)\n        if not\
+          \ text:\n            return \"\"\n        if text in classes:\n        \
+          \    return text\n        return alias_owner.get(norm_key(text), \"\")\n\
+          \n    parent_of = {}\n    for name, item in classes.items():\n        raw_parent\
+          \ = norm_space(item.get(\"parent\"))\n        if not raw_parent:\n     \
+          \       continue\n        resolved = resolve_class(raw_parent)\n       \
+          \ if resolved:\n            parent_of[name] = resolved\n        else:\n\
+          \            add_issue(\"spec_unknown_class_ref\", None,\n             \
+          \         \"extraction_spec.classes[%d].parent\" % class_pos[name], raw_parent)\n\
+          \n    ancestors = {}\n    cycles = []\n    for name in classes:\n      \
+          \  chain = [name]\n        current = name\n        for _ in range(CHAIN_MAX):\n\
+          \            parent = parent_of.get(current, \"\")\n            if not parent:\n\
+          \                break\n            if parent in chain:\n              \
+          \  key = \"|\".join(sorted(chain[chain.index(parent):]))\n             \
+          \   if key not in cycles:\n                    cycles.append(key)\n    \
+          \                add_issue(\"spec_class_cycle\", None,\n               \
+          \               \"extraction_spec.classes[%d].parent\" % class_pos[name],\n\
+          \                              \" > \".join(chain + [parent]))\n       \
+          \         break\n            chain.append(parent)\n            current =\
+          \ parent\n        ancestors[name] = chain\n\n    def lineage(name):\n  \
+          \      return ancestors.get(name, [name] if name else [])\n\n    props =\
+          \ {}\n    for position, item in enumerate(as_list(spec.get(\"properties\"\
+          ))):\n        if not isinstance(item, dict):\n            continue\n   \
+          \     name = norm_space(item.get(\"name\"))\n        if not name or name\
+          \ in props:\n            continue\n        kind = norm_space(item.get(\"\
+          kind\")).lower()\n        domain = []\n        for value in name_list(item.get(\"\
+          domain\")):\n            resolved = resolve_class(value)\n            if\
+          \ resolved:\n                if resolved not in domain:\n              \
+          \      domain.append(resolved)\n            else:\n                add_issue(\"\
+          spec_unknown_class_ref\", None,\n                          \"extraction_spec.properties[%d].domain\"\
+          \ % position, value)\n        range_classes = []\n        value_type = \"\
+          \"\n        for value in name_list(item.get(\"range\")):\n            lowered\
+          \ = value.lower()\n            if kind != \"relation\" and lowered in ATTR_TYPES:\n\
+          \                if not value_type:\n                    value_type = lowered\n\
+          \            elif kind != \"attribute\":\n                resolved = resolve_class(value)\n\
+          \                if resolved:\n                    if resolved not in range_classes:\n\
+          \                        range_classes.append(resolved)\n              \
+          \  else:\n                    add_issue(\"spec_unknown_class_ref\", None,\n\
+          \                              \"extraction_spec.properties[%d].range\"\
+          \ % position, value)\n        unit_names = name_list(item.get(\"unit_expected\"\
+          ))\n        props[name] = {\"kind\": kind, \"domain\": domain, \"range\"\
+          : range_classes, \"type\": value_type,\n                       \"unit_names\"\
+          : unit_names,\n                       \"units\": [key for key in (norm_key(unit)\
+          \ for unit in unit_names) if key]}\n\n    cq_list = []\n    cq_by_id = {}\n\
+          \    for position, item in enumerate(as_list(spec.get(\"cq_map\"))):\n \
+          \       if not isinstance(item, dict):\n            continue\n        cq_id\
+          \ = norm_space(item.get(\"cq_id\"))\n        if not cq_id or cq_id in cq_by_id:\n\
+          \            continue\n        answer_raw = norm_space(item.get(\"answer_class\"\
+          ))\n        answer = resolve_class(answer_raw)\n        if answer_raw and\
+          \ not answer:\n            add_issue(\"spec_unknown_class_ref\", None,\n\
+          \                      \"extraction_spec.cq_map[%d].answer_class\" % position,\
+          \ answer_raw)\n        entry = {\"cq_id\": cq_id, \"answer\": answer,\n\
+          \                 \"required\": name_list(item.get(\"required_properties\"\
+          ))}\n        cq_list.append(entry)\n        cq_by_id[cq_id] = entry\n\n\
+          \    try:\n        spec_text = json.dumps(spec, sort_keys=True, ensure_ascii=False,\
+          \ separators=(\",\", \":\"),\n                               default=str)\n\
+          \    except Exception:\n        spec_text = as_text(spec)\n    spec_hash\
+          \ = hashlib.sha1(spec_text.encode(\"utf-8\")).hexdigest()[:SPEC_HASH_LEN]\n\
+          \n    count = {\"evidence_checked\": 0, \"evidence_grounded\": 0, \"attribute_items\"\
+          : 0,\n             \"attribute_rejected\": 0, \"relation_items\": 0, \"\
+          relation_rejected\": 0,\n             \"property_in_spec\": 0, \"domain_range_pass\"\
+          : 0, \"domain_range_total\": 0}\n\n    # ---- 근거 1건 판정. 처음 걸린 사유 하나만 남긴다\n\
+          \    def judge_evidence(entry, rec, path):\n        count[\"evidence_checked\"\
+          ] += 1\n        if not isinstance(entry, dict):\n            add_issue(\"\
+          evidence_missing_fields\", rec, path)\n            return None\n       \
+          \ chunk_id = as_text(entry.get(\"chunk_id\")).strip()\n        quote = as_text(entry.get(\"\
+          quote\"))\n        if not chunk_id or not quote.strip():\n            add_issue(\"\
+          evidence_missing_fields\", rec, path)\n            return None\n       \
+          \ chunk = chunks.get(chunk_id)\n        if chunk is None:\n            add_issue(\"\
+          chunk_not_found\", rec, path, chunk_id)\n            return None\n     \
+          \   if not chunk[\"latest\"]:\n            add_issue(\"chunk_not_latest\"\
+          , rec, path, chunk_id)\n            return None\n        if chunk[\"state\"\
+          ] != \"active\":\n            add_issue(\"chunk_inactive\", rec, path, chunk_id)\n\
+          \            return None\n        if tenant and chunk[\"tenant\"] != tenant:\n\
+          \            add_issue(\"chunk_out_of_scope\", rec, path, chunk_id)\n  \
+          \          return None\n        key = norm_key(quote)\n        if len(key)\
+          \ < QUOTE_MIN_CHARS:\n            add_issue(\"quote_too_short\", rec, path,\
+          \ len(key))\n            return None\n        if key not in chunk[\"key\"\
+          ]:\n            add_issue(\"quote_not_found\", rec, path, chunk_id)\n  \
+          \          return None\n        count[\"evidence_grounded\"] += 1\n    \
+          \    document_id = as_text(entry.get(\"document_id\")).strip()\n       \
+          \ if document_id and document_id != chunk[\"document_id\"]:\n          \
+          \  add_issue(\"evidence_document_mismatch\", rec, path, chunk[\"document_id\"\
+          ])\n        return key\n\n    def judge_evidence_list(entries, rec, prefix):\n\
+          \        grounded = []\n        failed = []\n        for position, entry\
+          \ in enumerate(entries):\n            path = \"%sevidence[%d]\" % (prefix,\
+          \ position)\n            key = judge_evidence(entry, rec, path)\n      \
+          \      if key is None:\n                failed.append(path)\n          \
+          \  else:\n                grounded.append(key)\n        return grounded,\
+          \ failed\n\n    def make_id(class_name, label_key):\n        digest = hashlib.sha1((class_name\
+          \ + SEP + label_key).encode(\"utf-8\")).hexdigest()\n        return \"inst_\"\
+          \ + digest[:ID_HASH_LEN]\n\n    # ---- 4) 속성 항목 판정\n    def judge_attribute(item,\
+          \ rec, path):\n        if not isinstance(item, dict):\n            add_issue(\"\
+          property_not_in_spec\", rec, path, \"(객체 아님)\")\n            return False\n\
+          \        prop_name = norm_space(item.get(\"property\"))\n        prop =\
+          \ props.get(prop_name)\n        if prop is None:\n            add_issue(\"\
+          property_not_in_spec\", rec, path, prop_name or \"(빈 값)\")\n           \
+          \ return False\n        count[\"property_in_spec\"] += 1\n        if prop[\"\
+          kind\"] == \"relation\":\n            add_issue(\"property_kind_mismatch\"\
+          , rec, path, prop_name)\n            return False\n        review_here =\
+          \ False\n        if prop[\"domain\"]:\n            count[\"domain_range_total\"\
+          ] += 1\n            if any(name in lineage(rec[\"class\"]) for name in prop[\"\
+          domain\"]):\n                count[\"domain_range_pass\"] += 1\n       \
+          \     else:\n                add_issue(\"domain_mismatch\", rec, path, prop_name)\n\
+          \                review_here = True\n        raw_value = item.get(\"value\"\
+          )\n        value_text = norm_space(raw_value)\n        if raw_value is None\
+          \ or not value_text:\n            add_issue(\"value_missing\", rec, path)\n\
+          \            return False\n        value_type = prop[\"type\"]\n       \
+          \ type_ok = True\n        if value_type == \"number\":\n            try:\n\
+          \                float(value_text.replace(\",\", \"\"))\n            except\
+          \ Exception:\n                type_ok = False\n        elif value_type ==\
+          \ \"date\":\n            type_ok = bool(DATE_RE.match(value_text))\n   \
+          \     elif value_type == \"boolean\":\n            type_ok = isinstance(raw_value,\
+          \ bool) or value_text.lower() in (\"true\", \"false\")\n        if not type_ok:\n\
+          \            add_issue(\"value_type_mismatch\", rec, path, value_text[:30])\n\
+          \            review_here = True\n        unit_text = norm_space(item.get(\"\
+          unit\"))\n        if prop[\"units\"]:\n            if not unit_text:\n \
+          \               add_issue(\"unit_missing\", rec, path, \", \".join(prop[\"\
+          unit_names\"]))\n                review_here = True\n            elif norm_key(unit_text)\
+          \ not in prop[\"units\"]:\n                add_issue(\"unit_unexpected\"\
+          , rec, path, unit_text)\n                review_here = True\n        entries\
+          \ = as_list(item.get(\"evidence\"))\n        if entries:\n            grounded,\
+          \ failed = judge_evidence_list(entries, rec, path + \".\")\n           \
+          \ if not grounded:\n                add_issue(\"attribute_ungrounded\",\
+          \ rec, path)\n                return False\n            rec[\"rejected_paths\"\
+          ].extend(failed)\n        else:\n            grounded = rec[\"grounded\"\
+          ]\n        if value_type == \"number\" or unit_text or prop[\"units\"]:\n\
+          \            absent = [number for number in digits(value_text)\n       \
+          \               if not any(number in key for key in grounded)]\n       \
+          \     if absent:\n                add_issue(\"value_not_in_quote\", rec,\
+          \ path, \", \".join(absent[:3]))\n        if review_here:\n            rec[\"\
+          review_paths\"].append(path)\n        rec[\"attr_values\"].append([prop_name,\
+          \ norm_key(value_text) + SEP + norm_key(unit_text)])\n        rec[\"props\"\
+          ].append(prop_name)\n        return True\n\n    # ---- 6) 관계 항목 판정(병합 뒤에\
+          \ 부른다)\n    def judge_relation(item, rec, path):\n        if not isinstance(item,\
+          \ dict):\n            add_issue(\"property_not_in_spec\", rec, path, \"\
+          (객체 아님)\")\n            return False\n        prop_name = norm_space(item.get(\"\
+          property\"))\n        prop = props.get(prop_name)\n        if prop is None:\n\
+          \            add_issue(\"property_not_in_spec\", rec, path, prop_name or\
+          \ \"(빈 값)\")\n            return False\n        count[\"property_in_spec\"\
+          ] += 1\n        if prop[\"kind\"] == \"attribute\":\n            add_issue(\"\
+          property_kind_mismatch\", rec, path, prop_name)\n            return False\n\
+          \        target_temp = norm_space(item.get(\"target_temp_id\"))\n      \
+          \  target_class_raw = norm_space(item.get(\"target_class\"))\n        target_label\
+          \ = norm_space(item.get(\"target_label\"))\n        target_label_key = norm_key(target_label)\n\
+          \        if target_temp:\n            target = first_by_temp.get(target_temp)\n\
+          \            if target is None:\n                add_issue(\"relation_target_unresolved\"\
+          , rec, path, target_temp)\n                return False\n            if\
+          \ target[\"verdict\"] == \"rejected\":\n                add_issue(\"relation_target_rejected\"\
+          , rec, path, target_temp)\n                return False\n            target\
+          \ = rep_of.get(target[\"temp_id\"], target)\n            target_class =\
+          \ target[\"class\"]\n        elif target_class_raw and target_label_key:\n\
+          \            target_class = resolve_class(target_class_raw)\n          \
+          \  if not target_class:\n                add_issue(\"relation_target_class_not_in_spec\"\
+          , rec, path, target_class_raw)\n                return False\n         \
+          \   if target_class != target_class_raw:\n                add_issue(\"class_alias_resolved\"\
+          , rec, path + \".target_class\",\n                          target_class_raw\
+          \ + \" → \" + target_class)\n            if (target_class + SEP + target_label_key)\
+          \ not in groups:\n                add_issue(\"relation_target_external\"\
+          , rec, path, target_class + \", \" + target_label)\n        else:\n    \
+          \        add_issue(\"relation_target_missing\", rec, path)\n           \
+          \ return False\n        passed = True\n        if prop[\"domain\"] and not\
+          \ any(name in lineage(rec[\"class\"]) for name in prop[\"domain\"]):\n \
+          \           add_issue(\"domain_mismatch\", rec, path, prop_name)\n     \
+          \       passed = False\n        if prop[\"range\"] and not any(name in lineage(target_class)\
+          \ for name in prop[\"range\"]):\n            add_issue(\"range_mismatch\"\
+          , rec, path, target_class)\n            passed = False\n        if prop[\"\
+          domain\"] or prop[\"range\"]:\n            count[\"domain_range_total\"\
+          ] += 1\n            if passed:\n                count[\"domain_range_pass\"\
+          ] += 1\n        entries = as_list(item.get(\"evidence\"))\n        if entries:\n\
+          \            grounded, failed = judge_evidence_list(entries, rec, path +\
+          \ \".\")\n            if not grounded:\n                add_issue(\"relation_ungrounded\"\
+          , rec, path)\n                return False\n            rec[\"rejected_paths\"\
+          ].extend(failed)\n        if not passed:\n            rec[\"review_paths\"\
+          ].append(path)\n        rec[\"props\"].append(prop_name)\n        return\
+          \ True\n\n    # ---- 3) 원소 1차 판정과 4) attributes\n    items = instances if\
+          \ isinstance(instances, list) else []\n    recs = []\n    first_by_temp\
+          \ = {}\n    type_in_spec = 0\n    for index, raw in enumerate(items):\n\
+          \        rec = {\"index\": index, \"temp_id\": \"#%d\" % index,\n      \
+          \         \"raw\": raw if isinstance(raw, dict) else {}, \"verdict\": \"\
+          \", \"id\": \"\", \"class\": \"\",\n               \"label_key\": \"\",\
+          \ \"merged_into\": \"\", \"confidence\": None, \"grounded\": [],\n     \
+          \          \"review\": False, \"rejected_paths\": [], \"review_paths\":\
+          \ [], \"codes\": [],\n               \"attr_values\": [], \"props\": []}\n\
+          \        recs.append(rec)\n        if not isinstance(raw, dict):\n     \
+          \       add_issue(\"instance_not_object\", rec, \"\")\n            rec[\"\
+          verdict\"] = \"rejected\"\n            continue\n        if resolve_class(raw.get(\"\
+          class\")):\n            type_in_spec += 1\n        temp_id = norm_space(raw.get(\"\
+          temp_id\"))\n        if not temp_id:\n            add_issue(\"missing_field\"\
+          , rec, \"temp_id\", \"temp_id\")\n            rec[\"verdict\"] = \"rejected\"\
+          \n            continue\n        rec[\"temp_id\"] = temp_id\n        if temp_id\
+          \ in first_by_temp:\n            add_issue(\"duplicate_temp_id\", rec, \"\
+          temp_id\", temp_id)\n            rec[\"verdict\"] = \"rejected\"\n     \
+          \       continue\n        first_by_temp[temp_id] = rec\n        failed =\
+          \ False\n        class_raw = norm_space(raw.get(\"class\"))\n        class_name\
+          \ = resolve_class(class_raw)\n        if not class_raw:\n            add_issue(\"\
+          missing_field\", rec, \"class\", \"class\")\n            failed = True\n\
+          \        elif not class_name:\n            add_issue(\"class_not_in_spec\"\
+          , rec, \"class\", class_raw)\n            failed = True\n        else:\n\
+          \            if class_name != class_raw:\n                add_issue(\"class_alias_resolved\"\
+          , rec, \"class\", class_raw + \" → \" + class_name)\n            rec[\"\
+          class\"] = class_name\n        rec[\"label_key\"] = norm_key(raw.get(\"\
+          label\"))\n        if not rec[\"label_key\"]:\n            add_issue(\"\
+          missing_field\", rec, \"label\", \"label\")\n            failed = True\n\
+          \        grounded, failed_paths = judge_evidence_list(as_list(raw.get(\"\
+          evidence\")), rec, \"\")\n        if not grounded:\n            add_issue(\"\
+          no_grounded_evidence\", rec, \"evidence\")\n            failed = True\n\
+          \        if failed:\n            rec[\"verdict\"] = \"rejected\"\n     \
+          \       continue\n        rec[\"grounded\"] = grounded\n        rec[\"rejected_paths\"\
+          ].extend(failed_paths)\n        rec[\"id\"] = make_id(class_name, rec[\"\
+          label_key\"])\n        confidence = raw.get(\"confidence\")\n        value\
+          \ = None\n        if isinstance(confidence, (int, float)) and not isinstance(confidence,\
+          \ bool):\n            value = float(confidence)\n        elif isinstance(confidence,\
+          \ str):\n            try:\n                value = float(confidence.strip())\n\
+          \            except Exception:\n                value = None\n        if\
+          \ value is None or value != value or value < 0 or value > 1:\n         \
+          \   add_issue(\"missing_confidence\", rec, \"confidence\")\n           \
+          \ rec[\"review\"] = True\n        else:\n            rec[\"confidence\"\
+          ] = value\n            if value < REVIEW_CONFIDENCE_MIN:\n             \
+          \   add_issue(\"low_confidence\", rec, \"confidence\", value)\n        \
+          \        rec[\"review\"] = True\n        for position, ref in enumerate(as_list(raw.get(\"\
+          cq_refs\"))):\n            ref_id = norm_space(ref)\n            if not\
+          \ ref_id:\n                continue\n            cq = cq_by_id.get(ref_id)\n\
+          \            if cq is None:\n                add_issue(\"unknown_cq_ref\"\
+          , rec, \"cq_refs[%d]\" % position, ref_id)\n            elif cq[\"answer\"\
+          ] and cq[\"answer\"] not in lineage(class_name):\n                add_issue(\"\
+          cq_ref_class_mismatch\", rec, \"cq_refs[%d]\" % position, ref_id)\n    \
+          \    for position, item in enumerate(as_list(raw.get(\"attributes\"))):\n\
+          \            path = \"attributes[%d]\" % position\n            count[\"\
+          attribute_items\"] += 1\n            if not judge_attribute(item, rec, path):\n\
+          \                count[\"attribute_rejected\"] += 1\n                rec[\"\
+          rejected_paths\"].append(path)\n\n    # ---- 5) 병합: (class, 정규화 label) 이\
+          \ 같으면 한 묶음, 대표는 confidence 최고(같으면 앞 원소)\n    groups = {}\n    group_keys\
+          \ = []\n    for rec in recs:\n        if rec[\"verdict\"] == \"rejected\"\
+          :\n            continue\n        key = rec[\"class\"] + SEP + rec[\"label_key\"\
+          ]\n        if key not in groups:\n            groups[key] = []\n       \
+          \     group_keys.append(key)\n        groups[key].append(rec)\n\n    def\
+          \ rank(rec):\n        return rec[\"confidence\"] if rec[\"confidence\"]\
+          \ is not None else -1.0\n\n    rep_of = {}\n    for key in group_keys:\n\
+          \        members = groups[key]\n        rep = members[0]\n        for rec\
+          \ in members[1:]:\n            if rank(rec) > rank(rep):\n             \
+          \   rep = rec\n        for rec in members:\n            rep_of[rec[\"temp_id\"\
+          ]] = rep\n            if rec is not rep:\n                rec[\"verdict\"\
+          ] = \"merged\"\n                rec[\"merged_into\"] = rep[\"temp_id\"]\n\
+          \                add_issue(\"merged_duplicate\", rec, \"\", rep[\"temp_id\"\
+          ])\n        if len(members) > 1:\n            values = {}\n            for\
+          \ rec in members:\n                for prop_name, pair in rec[\"attr_values\"\
+          ]:\n                    bucket = values.setdefault(prop_name, [])\n    \
+          \                if pair not in bucket:\n                        bucket.append(pair)\n\
+          \            for prop_name, bucket in values.items():\n                if\
+          \ len(bucket) > 1:\n                    add_issue(\"merge_value_conflict\"\
+          , rep, \"attributes\", prop_name)\n                    rep[\"review\"] =\
+          \ True\n\n    # ---- 6) relations\n    for rec in recs:\n        if rec[\"\
+          verdict\"] == \"rejected\":\n            continue\n        for position,\
+          \ item in enumerate(as_list(rec[\"raw\"].get(\"relations\"))):\n       \
+          \     path = \"relations[%d]\" % position\n            count[\"relation_items\"\
+          ] += 1\n            if not judge_relation(item, rec, path):\n          \
+          \      count[\"relation_rejected\"] += 1\n                rec[\"rejected_paths\"\
+          ].append(path)\n\n    # ---- 7) 최종 verdict: rejected → merged → review →\
+          \ accepted\n    for rec in recs:\n        if rec[\"verdict\"] in (\"rejected\"\
+          , \"merged\"):\n            continue\n        rec[\"verdict\"] = \"review\"\
+          \ if rec[\"review\"] else \"accepted\"\n\n    # ---- 8) CQ 충족. cq_refs 가\
+          \ 아니라 판정 결과로 센다\n    owned = {}\n    for rec in recs:\n        if rec[\"\
+          verdict\"] == \"rejected\":\n            continue\n        rep = rep_of.get(rec[\"\
+          temp_id\"], rec)\n        bucket = owned.setdefault(rep[\"temp_id\"], [])\n\
+          \        for name in rec[\"props\"]:\n            if name not in bucket:\n\
+          \                bucket.append(name)\n    reps = [rec for rec in recs if\
+          \ rec[\"verdict\"] in (\"accepted\", \"review\")]\n\n    def has_all(rec,\
+          \ required):\n        names = owned.get(rec[\"temp_id\"], [])\n        return\
+          \ all(name in names for name in required)\n\n    def owned_count(rec, required):\n\
+          \        names = owned.get(rec[\"temp_id\"], [])\n        return len([name\
+          \ for name in required if name in names])\n\n    coverage = []\n    for\
+          \ cq in cq_list:\n        required = cq[\"required\"]\n        candidates\
+          \ = [rec for rec in reps if cq[\"answer\"] and cq[\"answer\"] in lineage(rec[\"\
+          class\"])]\n        full_accepted = [rec for rec in candidates\n       \
+          \                  if rec[\"verdict\"] == \"accepted\" and has_all(rec,\
+          \ required)]\n        full_any = [rec for rec in candidates if has_all(rec,\
+          \ required)]\n        if full_accepted:\n            status = \"answered\"\
+          \n            chosen = full_accepted\n            missing = []\n       \
+          \ elif full_any:\n            status = \"answered_pending_review\"\n   \
+          \         chosen = full_any\n            missing = []\n        elif candidates:\n\
+          \            status = \"partial\"\n            chosen = sorted(candidates,\
+          \ key=lambda rec: (-owned_count(rec, required), rec[\"index\"]))\n     \
+          \       best = owned.get(chosen[0][\"temp_id\"], [])\n            missing\
+          \ = [name for name in required if name not in best]\n        else:\n   \
+          \         status = \"no_instance\"\n            chosen = []\n          \
+          \  missing = list(required)\n        coverage.append({\"cq_id\": cq[\"cq_id\"\
+          ], \"status\": status,\n                         \"instance_ids\": dedup([rec[\"\
+          id\"] for rec in chosen\n                                              \
+          \  if rec[\"id\"]])[:CQ_INSTANCE_IDS_MAX],\n                         \"\
+          missing_properties\": missing})\n\n    # ---- 9) 출력과 길이 상한\n    issue_rows.sort(key=lambda\
+          \ row: (row[0], row[1], row[2]))\n    all_issues = [row[3] for row in issue_rows]\n\
+          \    tally = {\"accepted\": 0, \"review\": 0, \"merged\": 0, \"rejected\"\
+          : 0}\n    decisions = []\n    for rec in recs:\n        tally[rec[\"verdict\"\
+          ]] = tally.get(rec[\"verdict\"], 0) + 1\n        rejected = rec[\"verdict\"\
+          ] == \"rejected\"\n        decisions.append({\"temp_id\": rec[\"temp_id\"\
+          ],\n                          \"id\": \"\" if rejected else rec[\"id\"],\n\
+          \                          \"verdict\": rec[\"verdict\"],\n            \
+          \              \"merged_into\": rec[\"merged_into\"],\n                \
+          \          \"class\": rec[\"class\"],\n                          \"rejected_paths\"\
+          : [] if rejected else dedup(rec[\"rejected_paths\"]),\n                \
+          \          \"review_paths\": [] if rejected else dedup(rec[\"review_paths\"\
+          ]),\n                          \"issue_codes\": list(rec[\"codes\"])})\n\
+          \    item_total = count[\"attribute_items\"] + count[\"relation_items\"\
+          ]\n    summary = {\"instances_in\": len(recs),\n               \"accepted\"\
+          : tally[\"accepted\"], \"review\": tally[\"review\"],\n               \"\
+          merged\": tally[\"merged\"], \"rejected\": tally[\"rejected\"],\n      \
+          \         \"attribute_items\": count[\"attribute_items\"],\n           \
+          \    \"attribute_rejected\": count[\"attribute_rejected\"],\n          \
+          \     \"relation_items\": count[\"relation_items\"],\n               \"\
+          relation_rejected\": count[\"relation_rejected\"],\n               \"evidence_checked\"\
+          : count[\"evidence_checked\"],\n               \"evidence_grounded\": count[\"\
+          evidence_grounded\"],\n               \"metrics\": {\"evidence_rate\": [count[\"\
+          evidence_grounded\"], count[\"evidence_checked\"]],\n                  \
+          \         \"property_conformance\": [count[\"property_in_spec\"], item_total],\n\
+          \                           \"type_conformance\": [type_in_spec, len(recs)],\n\
+          \                           \"domain_range_conformance\": [count[\"domain_range_pass\"\
+          ],\n                                                        count[\"domain_range_total\"\
+          ]]},\n               \"spec_hash\": spec_hash,\n               \"review_confidence_min\"\
+          : REVIEW_CONFIDENCE_MIN}\n    issues_out = all_issues[:ISSUE_OUTPUT_MAX]\n\
+          \    payload[\"summary\"] = summary\n    payload[\"decisions\"] = decisions\n\
+          \    payload[\"issues\"] = issues_out\n    payload[\"issue_total\"] = len(all_issues)\n\
+          \    payload[\"blocking_issue_count\"] = len([row for row in issue_rows\
+          \ if row[3][\"severity\"] == \"error\"])\n    payload[\"cq_coverage\"] =\
+          \ coverage\n    dropped = 0\n    while _size(payload) > TARGET and issues_out:\n\
+          \        drop_at = -1\n        for severity in (\"warning\", \"review\"\
+          , \"error\"):\n            for position in range(len(issues_out) - 1, -1,\
+          \ -1):\n                if issues_out[position][\"severity\"] == severity:\n\
+          \                    drop_at = position\n                    break\n   \
+          \         if drop_at >= 0:\n                break\n        if drop_at <\
+          \ 0:\n            break\n        issues_out.pop(drop_at)\n        dropped\
+          \ += 1\n    shortened = False\n    if _size(payload) > TARGET:\n       \
+          \ for entry in coverage:\n            if len(entry[\"instance_ids\"]) >\
+          \ 1:\n                entry[\"instance_ids\"] = entry[\"instance_ids\"][:1]\n\
+          \                shortened = True\n    if dropped or shortened:\n      \
+          \  payload[\"warning\"] = _wtext(\"result_trimmed\", n=dropped)\n    return\
+          \ {\"payload\": payload}\n"
+        code_language: python3
+        desc: 충실성, 적합성, 병합, id, 검수 분류, CQ 충족, issue 를 코드로 판정한다. LLM 을 쓰지 않는다
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 결정론 판정
+        type: code
+        variables:
+        - value_selector:
+          - fetch_evidence
+          - body
+          variable: evidence_body
+        - value_selector:
+          - fetch_evidence
+          - status_code
+          variable: evidence_status
+        - value_selector:
+          - start
+          - instances
+          variable: instances
+        - value_selector:
+          - start
+          - extraction_spec
+          variable: extraction_spec
+        - value_selector:
+          - env
+          - TENANT_ID
+          variable: tenant_id
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: judge
+          position: right
+          type: source
+          width: 8
+          x: 277.2000732421875
+          y: 22.800048828125
+        target:
+        - height: 8
+          id: target
+          nodeId: judge
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.800048828125
+      id: judge
+      initialized: false
+      isParent: false
+      position:
+        x: 1315.405206580012
+        y: 513.3050382611503
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 840
+        y: 140
+        z: 0
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - comparison_operator: empty
+            id: ea1a6b21-8f2c-922a-de3c-aeb853df60f8
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - config_error
+          - comparison_operator: empty
+            id: c870866f-b23e-f485-793e-d0ee8a7654eb
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - arg_error
+          logical_operator: and
+        desc: config_error 와 arg_error 가 모두 비었을 때만 조회 갈래(ok)로 보낸다. 아니면 false 갈래로 외부
+          호출 없이 끝낸다
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 사전 점검
+        type: if-else
+      dimensions:
+        height: 203
+        width: 342
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: ok
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 338.800048828125
+          y: 57.800018310546875
+        - height: 8
+          id: 'false'
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 338.800048828125
+          y: 177
+        target:
+        - height: 8
+          id: target
+          nodeId: gate
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.800018310546875
+      id: gate
+      initialized: false
+      isParent: false
+      position:
+        x: 840
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 429
+        z: 0
+      data:
+        code: "\ndef main(config_error, arg_error):\n    config_text = str(config_error\
+          \ or \"\").strip()\n    arg_text = str(arg_error or \"\").strip()\n    if\
+          \ config_text:\n        return {\"payload\": {\"status\": \"error\", \"\
+          warning\": config_text}}\n    return {\"payload\": {\"status\": \"invalid_arguments\"\
+          , \"warning\": arg_text}}\n"
+        code_language: python3
+        desc: 외부 호출 없이 응답을 만든다. 설정 오류면 status error, 인자 오류면 invalid_arguments
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 점검 실패 응답
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - config_error
+          variable: config_error
+        - value_selector:
+          - prep
+          - arg_error
+          variable: arg_error
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: precheck_fail
+          position: right
+          type: source
+          width: 8
+          x: 277.2000732421875
+          y: 22.79998779296875
+        target:
+        - height: 8
+          id: target
+          nodeId: precheck_fail
+          position: left
+          type: target
+          width: 8
+          x: -5.199951171875
+          y: 22.79998779296875
+      id: precheck_fail
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 429
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 922.7062815597867
+        y: 646.5540474408066
+        z: 0
+      data:
+        desc: 두 갈래 가운데 실행된 쪽의 payload 를 고른다
+        output_type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 합류
+        type: variable-aggregator
+        variables:
+        - - judge
+          - payload
+        - - precheck_fail
+          - payload
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: merge
+          position: right
+          type: source
+          width: 8
+          x: 277.199951171875
+          y: 22.800048828125
+        target:
+        - height: 8
+          id: target
+          nodeId: merge
+          position: left
+          type: target
+          width: 8
+          x: -5.2000732421875
+          y: 22.800048828125
+      id: merge
+      initialized: false
+      isParent: false
+      position:
+        x: 922.7062815597867
+        y: 646.5540474408066
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 517.4349177498518
+        y: 743.0447092605574
+        z: 0
+      data:
+        code: "\ndef main(payload):\n    FIELDS = [['status', 'string'], ['summary',\
+          \ 'object'], ['decisions', 'array[object]'], ['issues', 'array[object]'],\
+          \ ['issue_total', 'number'], ['blocking_issue_count', 'number'], ['cq_coverage',\
+          \ 'array[object]'], ['warning', 'string']]\n    data = payload if isinstance(payload,\
+          \ dict) else {}\n    out = {}\n    for name, kind in FIELDS:\n        value\
+          \ = data.get(name)\n        if kind == \"string\":\n            out[name]\
+          \ = str(value) if value is not None else \"\"\n        elif kind == \"number\"\
+          :\n            try:\n                out[name] = int(value)\n          \
+          \  except Exception:\n                out[name] = 0\n        elif kind ==\
+          \ \"object\":\n            out[name] = value if isinstance(value, dict)\
+          \ else {}\n        else:\n            out[name] = value if isinstance(value,\
+          \ list) else []\n    return out\n"
+        code_language: python3
+        desc: payload 를 end 출력 8개로 펼치고 형을 맞춘다. end 는 이 노드만 참조한다
+        outputs:
+          blocking_issue_count:
+            children: null
+            type: number
+          cq_coverage:
+            children: null
+            type: array[object]
+          decisions:
+            children: null
+            type: array[object]
+          issue_total:
+            children: null
+            type: number
+          issues:
+            children: null
+            type: array[object]
+          status:
+            children: null
+            type: string
+          summary:
+            children: null
+            type: object
+          warning:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 펼치기
+        type: code
+        variables:
+        - value_selector:
+          - merge
+          - output
+          variable: payload
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: unpack
+          position: right
+          type: source
+          width: 8
+          x: 277.199951171875
+          y: 22.800048828125
+        target:
+        - height: 8
+          id: target
+          nodeId: unpack
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.800048828125
+      id: unpack
+      initialized: false
+      isParent: false
+      position:
+        x: 517.4349177498518
+        y: 743.0447092605574
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 130.54272761986977
+        y: 327.21590475163055
+        z: 0
+      data:
+        desc: 도구 응답 8필드. 이름과 타입이 게시 규격이다
+        display_variables:
+        - status
+        - summary
+        - decisions
+        - issues
+        - issue_total
+        - blocking_issue_count
+        - cq_coverage
+        - warning
+        outputs:
+        - value_selector:
+          - unpack
+          - status
+          variable: status
+        - value_selector:
+          - unpack
+          - summary
+          variable: summary
+        - value_selector:
+          - unpack
+          - decisions
+          variable: decisions
+        - value_selector:
+          - unpack
+          - issues
+          variable: issues
+        - value_selector:
+          - unpack
+          - issue_total
+          variable: issue_total
+        - value_selector:
+          - unpack
+          - blocking_issue_count
+          variable: blocking_issue_count
+        - value_selector:
+          - unpack
+          - cq_coverage
+          variable: cq_coverage
+        - value_selector:
+          - unpack
+          - warning
+          variable: warning
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 종료
+        type: end
+      dimensions:
+        height: 294
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target:
+        - height: 8
+          id: target
+          nodeId: done
+          position: left
+          type: target
+          width: 8
+          x: -5.20001220703125
+          y: 22.79998779296875
+      id: done
+      initialized: false
+      isParent: false
+      position:
+        x: 130.54272761986977
+        y: 327.21590475163055
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 80
+        y: -465
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 565
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 인스턴스 검증 (abox_validate_instances)
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: LLM 이 만든 후보 인스턴스(최대 15건)를 추출 명세와 색인 원문에 대조해 판정, id, issue 를
+                  돌려주는 MCP 도구다. 판정은 code 노드 judge 가 결정론적으로 하며 LLM 노드는 없다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 입력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' instances(array, 필수), extraction_spec(object, 필수). 원소 구조는
+                  inputSchema 에 실리지 않고 등록 콘솔의 인자 설명에만 있다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 출력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status, summary, decisions, issues, issue_total, blocking_issue_count,
+                  cq_coverage, warning. 원문은 돌려주지 않는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 전제
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' mode 는 workflow 다. 근거 chunk 를 ES _mget 1회로 다시 읽는다. 1회 결과는
+                  8,000자 이내다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: blue
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 565
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 565
+      id: note_t4_overview
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: -465
+      positionAbsolute:
+        x: 80
+        y: -465
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#eff8ff'
+        border: '1px solid #84caff'
+        height: 565px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1708.260043988998
+        y: -315
+        z: 999
+      data:
+        author: ''
+        desc: ''
+        height: 607
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 판정 순서
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: '1) 명세 정규화: 별칭 색인, parent 사슬(최대 20단), spec_hash  2) 근거 chunk
+                  색인  3) 원소 판정: temp_id, class(별칭 해석), label, 근거, id, confidence,
+                  cq_refs  4) attributes 판정  5) (class, 정규화 label) 병합  6) relations
+                  판정(병합 뒤)  7) 최종 verdict  8) CQ 충족  9) issue 정렬과 길이 절단'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 근거 1건은 found, is_latest, active, tenant 일치, 정규화 인용문 8자 이상, 원문
+                  부분 문자열 순서로 본다. 정규화는 NFKC, casefold, 공백 제거, 구두점과 기호 제거(. 과 % 는 남긴다)다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: id 는 inst_ 에 sha1(class, 구분자, 정규화 label) 앞 16자리를 붙인 값이라 입력 순서와
+                  배치 구성에 관계없이 같다. 다른 배치의 인스턴스도 target_class 와 target_label 로 같은 id
+                  에 연결된다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: green
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 607
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 607
+      id: note_t4_flow
+      initialized: false
+      isParent: false
+      position:
+        x: 1708.260043988998
+        y: -315
+      positionAbsolute:
+        x: 1320
+        y: 312
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#ecfdf3'
+        border: '1px solid #75e0a7'
+        height: 607px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1320
+        y: -525
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 817
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 함정 주의
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: _mget 이 실패하면 판정하지 않는다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status error 와 evidence_fetch_failed 로 끝낸다. 판정을 강행하면 모든 근거가
+                  chunk_not_found 가 되어 근거가 정상인 인스턴스까지 거절된다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: _mget 에는 filter 가 없다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 판 필터를 걸 수 없어 is_latest, lifecycle_state, tenant_id 를 _source
+                  로 받아 judge 가 판정한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: array·object 인자.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' agent-studio 는 형 검사만 하고 넘긴다. 빈 배열과 빈 객체는 필수값 누락으로 거절된다. Single
+                  Agent 를 거쳐 그대로 전달되는지는 시험에서 확인한다(환경 확인 E10).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 결과 길이.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 판정 15건과 issue 15건이면 약 7,000자다. 8,000자를 넘으면 issue 를 warning,
+                  review, error 순서로 뒤에서부터 빼고 decisions 는 빼지 않는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 판정 상수는 code 안에 있다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 신뢰도 임계 0.6 과 인용문 최소 8자는 환경변수가 아니다. 콘솔에서 바뀌면 같은 입력에 다른 판정이
+                  나오기 때문이다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: prep 의 근거 목록은 60개까지만 조회한다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 초과하면 too_many_evidence_chunks 로 배치를 거절하므로 조회가 잘린 채 판정되는 일은
+                  없다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: red
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 817
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 817
+      id: note_t4_traps
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: -525
+      positionAbsolute:
+        x: 1320
+        y: -525
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fdf2fa'
+        border: '1px solid #faa7e0'
+        height: 817px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 840
+        y: -717
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 817
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 사전 점검 gate
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: prep 이 환경변수와 인자를 점검해 config_error 와 arg_error 를 낸다. gate 는 둘
+                  다 빈 값일 때만(and) ok 갈래의 조회로 보내고, 나머지는 false 갈래의 precheck_fail 로 보낸다.
+                  precheck_fail 은 외부 호출 없이 끝나며 config_error 가 있으면 status error, 없으면
+                  invalid_arguments 다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 인자 점검.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 배치 단위 거절 4종이다. spec_invalid(classes 가 비었거나 properties 가 배열이
+                  아님), too_many_instances(15건 초과), no_evidence_supplied(chunk_id 가
+                  있는 evidence 없음), too_many_evidence_chunks(서로 다른 chunk_id 60개 초과).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 분기 노드 규칙.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' gate 에는 default-value 를 걸 수 없다. false 엣지를 빠뜨리면 점검 실패 때 흐름이
+                  조용히 멈춘다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 한 end 로 모으는 방법.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 두 갈래가 같은 이름의 object(payload)를 내고 merge(variable-aggregator)가
+                  실행된 쪽을 고른다. unpack 이 end 출력으로 펼치므로 end 는 하나이고 게시 규격이 두 갈래에서 같다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 점검 한계.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 빈 값과 CHANGE-ME 는 잡지만 틀린 값(오타)은 잡지 못한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: purple
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 817
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 817
+      id: note_t4_gate
+      initialized: false
+      isParent: false
+      position:
+        x: 840
+        y: -717
+      positionAbsolute:
+        x: 840
+        y: -717
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#f3e8ff'
+        border: '1px solid #e9d5ff'
+        height: 817px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1320
+        y: -1236
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 691
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: CHANGE-ME 교체 안내
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 가져오기 뒤 앱 설정의 환경변수 4개를 실제 값으로 바꾼다. 초기값은 모두 CHANGE-ME 이며, 그대로
+                  두면 조회 없이 status error 로 끝난다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_BASE_URL
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) Elasticsearch 주소. 끝에 슬래시를 붙이지 않는다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_INDEX
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) 표준 계층 색인 v2.0 KB 인덱스명. 단일 인덱스 또는 단일 인덱스를 가리키는 alias'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_AUTH_HEADER
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (secret) Authorization 헤더 값(ApiKey ... 또는 Basic ...). 인증 없는
+                  ES 면 빈 문자열. secret 이라 DSL 을 내보내면 값이 비워진다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: TENANT_ID
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) 다중 테넌트 색인의 tenant_id 값. 빈 문자열이면 tenant 조건을 걸지 않는다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ES_AUTH_HEADER 와 TENANT_ID 는 빈 문자열을 허용한다. 인증 없는 ES 이거나 단일 테넌트
+                  색인이면 CHANGE-ME 를 지우고 빈 값으로 둔다. 같은 값을 다른 abox 앱에도 따로 넣는다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: yellow
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 691
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 691
+      id: note_t4_changeme
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: -1236
+      positionAbsolute:
+        x: 1320
+        y: -1236
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fefbe8'
+        border: '1px solid #fde272'
+        height: 691px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0
+  rag_pipeline_variables: []

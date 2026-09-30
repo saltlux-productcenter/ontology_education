@@ -1,0 +1,432 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ado: <http://example.com/ontology/> .
+@prefix adr: <http://example.com/resource/> .
+@prefix ns1: <http://www.w3.org/ns/prov#> .
+
+<http://example.com/ontology> a owl:Ontology;
+  rdfs:label "제조온톨로지";
+  rdfs:comment "제조온톨로지";
+  owl:versionIRI <http://example.com/ontology/2.0.0>; owl:versionInfo "2.0.0" .
+
+ado:ProductionLot a owl:Class;
+  rdfs:label "생산 로트"@ko;
+  rdfs:comment "동일한 생산 공정이나 조건에 따라 함께 제조된 제품의 묶음."@ko;
+  rdfs:subClassOf ns1:Collection .
+
+ado:WorkOrder a owl:Class;
+  rdfs:label "작업 지시"@ko;
+  rdfs:comment "제품 생산을 위해 수행할 작업의 내용과 상태를 기록한 지시."@ko;
+  rdfs:subClassOf ns1:Plan .
+
+ado:Product a owl:Class;
+  rdfs:label "제품"@ko;
+  rdfs:comment "제품 품목의 종류를 나타내는 마스터 항목. 개별 제조품은 ManufacturedUnit으로 구분한다."@ko;
+  rdfs:subClassOf ado:Item .
+
+ado:Machine a owl:Class;
+  rdfs:label "설비"@ko;
+  rdfs:comment "제조 작업에 사용되는 기계 또는 생산 설비."@ko;
+  rdfs:subClassOf ns1:Entity .
+
+ado:Employee a owl:Class;
+  rdfs:label "직원"@ko;
+  rdfs:comment "제조 또는 검사 업무를 수행하는 조직 구성원."@ko;
+  rdfs:subClassOf ns1:Person .
+
+ado:Department a owl:Class;
+  rdfs:label "부서"@ko;
+  rdfs:comment "직원이 소속되어 업무를 수행하는 조직 단위."@ko;
+  rdfs:subClassOf ns1:Organization .
+
+ado:Inspection a owl:Class;
+  rdfs:label "검사"@ko;
+  rdfs:comment "생산 로트의 품질이나 적합성을 평가한 활동 및 기록."@ko;
+  rdfs:subClassOf ns1:Activity .
+
+ado:MaterialConsumption a owl:Class;
+  rdfs:label "자재 소비"@ko;
+  rdfs:comment "생산 과정에서 특정 자재 로트가 사용된 내역."@ko;
+  rdfs:subClassOf ado:MaterialAllocation .
+
+ado:MaterialLot a owl:Class;
+  rdfs:label "자재 로트"@ko;
+  rdfs:comment "동일한 입고 또는 생산 조건으로 관리되는 자재의 묶음."@ko;
+  rdfs:subClassOf ns1:Collection .
+
+ado:Material a owl:Class;
+  rdfs:label "자재"@ko;
+  rdfs:comment "자재 품목의 종류를 나타내는 마스터 항목. 실제 입고 묶음은 MaterialLot으로 구분한다."@ko;
+  rdfs:subClassOf ado:Item .
+
+ado:Supplier a owl:Class;
+  rdfs:label "공급업체"@ko;
+  rdfs:comment "생산에 필요한 자재를 공급하는 조직."@ko;
+  rdfs:subClassOf ns1:Organization .
+
+ns1:Collection a owl:Class;
+  rdfs:subClassOf ns1:Entity .
+
+ns1:Entity a owl:Class .
+
+ns1:Plan a owl:Class;
+  rdfs:subClassOf ns1:Entity .
+
+ns1:Person a owl:Class;
+  rdfs:subClassOf ns1:Agent .
+
+ns1:Agent a owl:Class .
+
+ns1:Organization a owl:Class;
+  rdfs:subClassOf ns1:Agent .
+
+ns1:Activity a owl:Class .
+
+ado:hasProductionLotId a owl:DatatypeProperty;
+  rdfs:label "생산 로트 식별자"@ko;
+  rdfs:comment "생산 로트를 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:ProductionLot;
+  rdfs:range xsd:string .
+
+ado:generatedFromWorkOrder a owl:ObjectProperty;
+  rdfs:label "생성 근거 작업 지시"@ko;
+  rdfs:comment "생산 로트가 어떤 작업 지시에 따라 생성되었는지를 나타낸다."@ko;
+  rdfs:domain ado:ProductionLot;
+  rdfs:range ado:WorkOrder .
+
+ado:manufacturedOnMachine a owl:ObjectProperty;
+  rdfs:label "제조 설비"@ko;
+  rdfs:comment "생산 로트가 제조된 설비를 나타낸다."@ko;
+  rdfs:domain ado:ProductionLot;
+  rdfs:range ado:Machine .
+
+ado:hasWorkOrderId a owl:DatatypeProperty;
+  rdfs:label "작업 지시 식별자"@ko;
+  rdfs:comment "작업 지시를 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:WorkOrder;
+  rdfs:range xsd:string .
+
+ado:producesProduct a owl:ObjectProperty;
+  rdfs:label "생산 제품"@ko;
+  rdfs:comment "작업 지시를 통해 생산하도록 지정된 제품을 나타낸다."@ko;
+  rdfs:domain ado:WorkOrder;
+  rdfs:range ado:Product .
+
+ado:operatedByEmployee a owl:ObjectProperty;
+  rdfs:label "작업 담당 직원"@ko;
+  rdfs:comment "작업 지시를 수행하거나 설비를 운전한 직원을 나타낸다."@ko;
+  rdfs:domain ado:WorkOrder;
+  rdfs:range ado:Employee .
+
+ado:hasWorkOrderStatus a owl:DatatypeProperty;
+  rdfs:label "작업 지시 상태"@ko;
+  rdfs:comment "작업 지시의 현재 진행 상태를 나타낸다."@ko;
+  rdfs:domain ado:WorkOrder;
+  rdfs:range xsd:string .
+
+ado:hasProductId a owl:DatatypeProperty;
+  rdfs:label "제품 식별자"@ko;
+  rdfs:comment "제품을 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:Product;
+  rdfs:range xsd:string .
+
+ado:hasProductName a owl:DatatypeProperty;
+  rdfs:label "제품명"@ko;
+  rdfs:comment "제품에 부여된 명칭."@ko;
+  rdfs:domain ado:Product;
+  rdfs:range xsd:string .
+
+ado:hasMachineId a owl:DatatypeProperty;
+  rdfs:label "설비 식별자"@ko;
+  rdfs:comment "설비를 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:Machine;
+  rdfs:range xsd:string .
+
+ado:hasMachineName a owl:DatatypeProperty;
+  rdfs:label "설비명"@ko;
+  rdfs:comment "설비에 부여된 명칭."@ko;
+  rdfs:domain ado:Machine;
+  rdfs:range xsd:string .
+
+ado:hasEmployeeId a owl:DatatypeProperty;
+  rdfs:label "직원 식별자"@ko;
+  rdfs:comment "직원을 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:Employee;
+  rdfs:range xsd:string .
+
+ado:hasEmployeeName a owl:DatatypeProperty;
+  rdfs:label "직원명"@ko;
+  rdfs:comment "직원의 이름."@ko;
+  rdfs:domain ado:Employee;
+  rdfs:range xsd:string .
+
+ado:belongsToDepartment a owl:ObjectProperty;
+  rdfs:label "소속 부서"@ko;
+  rdfs:comment "직원이 소속된 부서를 나타낸다."@ko;
+  rdfs:domain ado:Employee;
+  rdfs:range ado:Department;
+  owl:inverseOf ado:hasDepartmentMember .
+
+ado:hasDepartmentName a owl:DatatypeProperty;
+  rdfs:label "부서명"@ko;
+  rdfs:comment "부서에 부여된 명칭."@ko;
+  rdfs:domain ado:Department;
+  rdfs:range xsd:string .
+
+ado:hasDepartmentMember a owl:ObjectProperty;
+  rdfs:label "부서 구성원"@ko;
+  rdfs:comment "부서에 소속된 직원을 나타낸다."@ko;
+  rdfs:domain ado:Department;
+  rdfs:range ado:Employee .
+
+ado:hasInspectionId a owl:DatatypeProperty;
+  rdfs:label "검사 식별자"@ko;
+  rdfs:comment "검사 기록을 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:Inspection;
+  rdfs:range xsd:string .
+
+ado:evaluatesProductionLot a owl:ObjectProperty;
+  rdfs:label "평가 대상 생산 로트"@ko;
+  rdfs:comment "검사에서 평가한 생산 로트를 나타낸다."@ko;
+  rdfs:domain ado:Inspection;
+  rdfs:range ado:ProductionLot .
+
+ado:inspectedAt a owl:DatatypeProperty;
+  rdfs:label "검사 일시"@ko;
+  rdfs:comment "검사가 수행된 날짜와 시각."@ko;
+  rdfs:domain ado:Inspection;
+  rdfs:range xsd:dateTime .
+
+ado:hasInspectionResult a owl:DatatypeProperty;
+  rdfs:label "검사 결과"@ko;
+  rdfs:comment "검사에서 판정되거나 기록된 결과."@ko;
+  rdfs:domain ado:Inspection;
+  rdfs:range xsd:string .
+
+ado:linkedFailureInspection a owl:ObjectProperty;
+  rdfs:label "연계된 불합격 검사"@ko;
+  rdfs:comment "생산 로트와 관련된 불합격 검사 기록을 나타낸다."@ko;
+  rdfs:domain ado:ProductionLot;
+  rdfs:range ado:Inspection .
+
+ado:hasConsumptionId a owl:DatatypeProperty;
+  rdfs:label "자재 소비 식별자"@ko;
+  rdfs:comment "자재 소비 내역을 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:MaterialConsumption;
+  rdfs:range xsd:string .
+
+ado:consumedForProductionLot a owl:ObjectProperty;
+  rdfs:label "소비 대상 생산 로트"@ko;
+  rdfs:comment "자재가 사용된 생산 로트를 나타낸다."@ko;
+  rdfs:domain ado:MaterialConsumption;
+  rdfs:range ado:ProductionLot .
+
+ado:consumesMaterialLot a owl:ObjectProperty;
+  rdfs:label "소비된 자재 로트"@ko;
+  rdfs:comment "생산 과정에서 사용된 자재 로트를 나타낸다."@ko;
+  rdfs:domain ado:MaterialConsumption;
+  rdfs:range ado:MaterialLot .
+
+ado:hasMaterialLotId a owl:DatatypeProperty;
+  rdfs:label "자재 로트 식별자"@ko;
+  rdfs:comment "자재 로트를 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:MaterialLot;
+  rdfs:range xsd:string .
+
+ado:identifiesMaterial a owl:ObjectProperty;
+  rdfs:label "해당 자재"@ko;
+  rdfs:comment "자재 로트가 어떤 자재에 해당하는지를 나타낸다."@ko;
+  rdfs:domain ado:MaterialLot;
+  rdfs:range ado:Material .
+
+ado:suppliedBySupplier a owl:ObjectProperty;
+  rdfs:label "자재 로트 공급업체"@ko;
+  rdfs:comment "자재 로트를 공급한 업체를 나타낸다."@ko;
+  rdfs:domain ado:MaterialLot;
+  rdfs:range ado:Supplier .
+
+ado:hasMaterialId a owl:DatatypeProperty;
+  rdfs:label "자재 식별자"@ko;
+  rdfs:comment "자재를 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:Material;
+  rdfs:range xsd:string .
+
+ado:hasMaterialName a owl:DatatypeProperty;
+  rdfs:label "자재명"@ko;
+  rdfs:comment "자재에 부여된 명칭."@ko;
+  rdfs:domain ado:Material;
+  rdfs:range xsd:string .
+
+ado:hasSupplierId a owl:DatatypeProperty;
+  rdfs:label "공급업체 식별자"@ko;
+  rdfs:comment "공급업체를 고유하게 식별하는 값."@ko;
+  rdfs:domain ado:Supplier;
+  rdfs:range xsd:string .
+
+ado:hasSupplierName a owl:DatatypeProperty;
+  rdfs:label "공급업체명"@ko;
+  rdfs:comment "공급업체에 부여된 명칭."@ko;
+  rdfs:domain ado:Supplier;
+  rdfs:range xsd:string .
+
+ado:SourceDocument a owl:Class; rdfs:label "출처 문서"@ko; rdfs:subClassOf ns1:Entity .
+ado:Item a owl:Class; rdfs:label "품목"@ko; rdfs:subClassOf ns1:Entity .
+ado:ProductSpecification a owl:Class; rdfs:label "제품 사양서"@ko; rdfs:subClassOf ns1:Entity .
+ado:BillOfMaterials a owl:Class; rdfs:label "자재 명세서"@ko; rdfs:subClassOf ns1:Entity .
+ado:BOMLine a owl:Class; rdfs:label "BOM 구성 행"@ko; rdfs:subClassOf ns1:Entity .
+ado:Firmware a owl:Class; rdfs:label "펌웨어"@ko; rdfs:subClassOf ns1:Entity .
+ado:InspectionCriterion a owl:Class; rdfs:label "검사 기준 항목"@ko; rdfs:subClassOf ns1:Entity .
+ado:InspectionResultRow a owl:Class; rdfs:label "검사항목별 결과 행"@ko; rdfs:subClassOf ns1:Entity .
+ado:ManufacturedUnit a owl:Class; rdfs:label "시리얼이 확인된 개별 제품"@ko; rdfs:subClassOf ns1:Entity .
+ado:WorkOrderStep a owl:Class; rdfs:label "작업지시별 공정 단계 기록"@ko; rdfs:subClassOf ns1:Entity .
+ado:MaterialAllocation a owl:Class; rdfs:label "자재 배정 및 투입 기록"@ko; rdfs:subClassOf ns1:Activity .
+ado:QualityAction a owl:Class; rdfs:label "품질 조치"@ko; rdfs:subClassOf ns1:Activity .
+ado:Rework a owl:Class; rdfs:label "재작업"@ko; rdfs:subClassOf ado:QualityAction .
+ado:QualityHold a owl:Class; rdfs:label "품질 보류"@ko; rdfs:subClassOf ado:QualityAction .
+ado:Item rdfs:comment "제품·자재의 종류와 규격을 관리하는 품목마스터 항목. 개별 제품 및 입고 로트와 구분한다."@ko .
+ado:ProductSpecification rdfs:comment "제품과 적용 BOM·펌웨어·검사 기준을 특정 개정으로 묶은 승인 사양."@ko .
+ado:BillOfMaterials rdfs:comment "특정 개정의 제품 구성표. 수량·공정·승인 공급업체는 구성 행에서 정의한다."@ko .
+ado:BOMLine rdfs:comment "BOM 개정 안의 자재별 구성 행. 제품 1대당 소요량과 승인 공급업체의 적용 범위를 보존한다."@ko .
+ado:InspectionResultRow rdfs:comment "검사번호 안의 검사항목·측정항목·대상별 기록. 동일 장치가 여러 행에 나타날 수 있다."@ko .
+ado:ManufacturedUnit rdfs:comment "원문에서 시리얼번호가 개별적으로 확인된 제품 1대."@ko .
+ado:WorkOrderStep rdfs:comment "작업지시서 공정표의 한 행을 나타내는 기록. 지시 내용과 실제 수행 기록을 구분하며, 미착수·보류 단계도 포함한다."@ko .
+ado:QualityHold rdfs:comment "조사 또는 승인 전까지 생산·사용·출하를 중지한 조치. 자재 로트가 원인이라는 뜻은 아니다."@ko .
+ado:MaterialAllocation rdfs:comment "계획 수량과 실제 투입량을 함께 기록한다. 실제 투입량 0은 소비가 없음을 뜻한다."@ko .
+
+ado:sourceFileName a owl:DatatypeProperty; rdfs:label "출처 파일명"@ko; rdfs:domain ado:SourceDocument; rdfs:range xsd:string .
+ado:sourceDocument a owl:ObjectProperty; rdfs:label "근거 문서"@ko; rdfs:domain owl:Thing; rdfs:range ado:SourceDocument .
+ado:specificationId a owl:DatatypeProperty; rdfs:label "사양서 번호"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:string .
+ado:specificationRevision a owl:DatatypeProperty; rdfs:label "사양서 개정"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:string .
+ado:approvedOn a owl:DatatypeProperty; rdfs:label "승인일"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:date .
+ado:effectiveOn a owl:DatatypeProperty; rdfs:label "적용일"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:date .
+ado:specifiesProduct a owl:ObjectProperty; rdfs:label "사양 적용 제품"@ko; rdfs:domain ado:ProductSpecification; rdfs:range ado:Product .
+ado:specifiesBOM a owl:ObjectProperty; rdfs:label "사양 적용 BOM"@ko; rdfs:domain ado:ProductSpecification; rdfs:range ado:BillOfMaterials .
+ado:specifiesFirmware a owl:ObjectProperty; rdfs:label "사양 적용 펌웨어"@ko; rdfs:domain ado:ProductSpecification; rdfs:range ado:Firmware .
+ado:inputVoltageNominalV a owl:DatatypeProperty; rdfs:label "정격 입력 전압 V"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:inputVoltageTolerancePercent a owl:DatatypeProperty; rdfs:label "입력 전압 허용 편차 %"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:operatingCurrentMaxMilliamp a owl:DatatypeProperty; rdfs:label "최대 정상 동작 전류 mA"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:operatingTemperatureMinC a owl:DatatypeProperty; rdfs:label "사용 온도 하한 °C"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:operatingTemperatureMaxC a owl:DatatypeProperty; rdfs:label "사용 온도 상한 °C"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:operatingHumidityMinRH a owl:DatatypeProperty; rdfs:label "사용 상대습도 하한 %RH"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:operatingHumidityMaxRH a owl:DatatypeProperty; rdfs:label "사용 상대습도 상한 %RH"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:temperatureReferenceC a owl:DatatypeProperty; rdfs:label "검사 기준 온도 °C"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:humidityReferenceRH a owl:DatatypeProperty; rdfs:label "검사 기준 습도 %RH"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:temperatureToleranceC a owl:DatatypeProperty; rdfs:label "기준점 온도 허용 오차 °C"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:humidityTolerancePercentagePoint a owl:DatatypeProperty; rdfs:label "기준점 습도 허용 오차 %p"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:measurementPeriodSeconds a owl:DatatypeProperty; rdfs:label "측정 주기 초"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:integer .
+ado:transmissionPeriodSeconds a owl:DatatypeProperty; rdfs:label "전송 주기 초"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:integer .
+ado:wifiBandGHz a owl:DatatypeProperty; rdfs:label "Wi-Fi 대역 GHz"@ko; rdfs:domain ado:ProductSpecification; rdfs:range xsd:decimal .
+ado:bomId a owl:DatatypeProperty; rdfs:label "BOM 번호"@ko; rdfs:domain ado:BillOfMaterials; rdfs:range xsd:string .
+ado:bomRevision a owl:DatatypeProperty; rdfs:label "BOM 개정"@ko; rdfs:domain ado:BillOfMaterials; rdfs:range xsd:string .
+ado:forProduct a owl:ObjectProperty; rdfs:label "BOM 대상 제품"@ko; rdfs:domain ado:BillOfMaterials; rdfs:range ado:Product .
+ado:hasBOMLine a owl:ObjectProperty; rdfs:label "BOM의 구성 행"@ko; rdfs:domain ado:BillOfMaterials; rdfs:range ado:BOMLine .
+ado:componentMaterial a owl:ObjectProperty; rdfs:label "구성 자재"@ko; rdfs:domain ado:BOMLine; rdfs:range ado:Material .
+ado:quantityPerProduct a owl:DatatypeProperty; rdfs:label "제품 1대당 소요량"@ko; rdfs:domain ado:BOMLine; rdfs:range xsd:decimal .
+ado:quantityUnit a owl:DatatypeProperty; rdfs:label "수량 단위"@ko; rdfs:domain ado:BOMLine; rdfs:range xsd:string .
+ado:usageStage a owl:DatatypeProperty; rdfs:label "투입 공정"@ko; rdfs:domain ado:BOMLine; rdfs:range xsd:string .
+ado:firmwareCode a owl:DatatypeProperty; rdfs:label "펌웨어 코드"@ko; rdfs:domain ado:Firmware; rdfs:range xsd:string .
+ado:firmwareVersion a owl:DatatypeProperty; rdfs:label "펌웨어 버전"@ko; rdfs:domain ado:Firmware; rdfs:range xsd:string .
+ado:itemType a owl:DatatypeProperty; rdfs:label "품목 유형"@ko; rdfs:domain ado:Item; rdfs:range xsd:string .
+ado:itemSpecification a owl:DatatypeProperty; rdfs:label "품목 규격"@ko; rdfs:domain ado:Item; rdfs:range xsd:string .
+ado:stockUnit a owl:DatatypeProperty; rdfs:label "재고 단위"@ko; rdfs:domain ado:Item; rdfs:range xsd:string .
+ado:approvedSupplier a owl:ObjectProperty; rdfs:label "BOM 구성 행의 승인 공급업체"@ko; rdfs:domain ado:BOMLine; rdfs:range ado:Supplier .
+ado:criterionCode a owl:DatatypeProperty; rdfs:label "검사항목 코드"@ko; rdfs:domain ado:InspectionCriterion; rdfs:range xsd:string .
+ado:criterionText a owl:DatatypeProperty; rdfs:label "검사 합격 기준"@ko; rdfs:domain ado:InspectionCriterion; rdfs:range xsd:string .
+ado:hasCriterion a owl:ObjectProperty; rdfs:label "사양의 검사항목"@ko; rdfs:domain ado:ProductSpecification; rdfs:range ado:InspectionCriterion .
+ado:workOrderSpecification a owl:ObjectProperty; rdfs:label "적용 사양서"@ko; rdfs:domain ado:WorkOrder; rdfs:range ado:ProductSpecification .
+ado:workOrderBOM a owl:ObjectProperty; rdfs:label "적용 BOM"@ko; rdfs:domain ado:WorkOrder; rdfs:range ado:BillOfMaterials .
+ado:hasWorkOrderStep a owl:ObjectProperty; rdfs:label "작업지시의 공정 단계"@ko; rdfs:domain ado:WorkOrder; rdfs:range ado:WorkOrderStep .
+ado:nextWorkOrderStep a owl:ObjectProperty; rdfs:label "공정표의 다음 단계"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:WorkOrderStep .
+ado:precedesWorkOrderStep a owl:ObjectProperty; rdfs:label "공정표상 선행 단계"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:WorkOrderStep .
+ado:stepOrder a owl:DatatypeProperty; rdfs:label "공정표 순번"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:integer .
+ado:stepName a owl:DatatypeProperty; rdfs:label "공정 단계명"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:string .
+ado:stepInstruction a owl:DatatypeProperty; rdfs:label "단계 작업지시"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:string .
+ado:stepRecord a owl:DatatypeProperty; rdfs:label "원문 수행 기록"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:string .
+ado:stepStatus a owl:DatatypeProperty; rdfs:label "단계 진행 상태"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:string .
+ado:stepStart a owl:DatatypeProperty; rdfs:label "단계 실제 시작일시"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:dateTime .
+ado:stepEnd a owl:DatatypeProperty; rdfs:label "단계 실제 종료일시"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range xsd:dateTime .
+ado:stepOperator a owl:ObjectProperty; rdfs:label "단계 수행 담당자"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:Employee .
+ado:stepMachine a owl:ObjectProperty; rdfs:label "단계 사용 설비"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:Machine .
+ado:stepInspection a owl:ObjectProperty; rdfs:label "단계 검사 기록"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:Inspection .
+ado:stepQualityAction a owl:ObjectProperty; rdfs:label "단계 품질 조치 기록"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:QualityAction .
+ado:stepBlockedByAction a owl:ObjectProperty; rdfs:label "단계를 중단시킨 품질 보류"@ko; rdfs:domain ado:WorkOrderStep; rdfs:range ado:QualityHold .
+ado:plannedStart a owl:DatatypeProperty; rdfs:label "계획 시작일시"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:dateTime .
+ado:plannedEnd a owl:DatatypeProperty; rdfs:label "계획 완료일시"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:dateTime .
+ado:actualStart a owl:DatatypeProperty; rdfs:label "실제 시작일시"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:dateTime .
+ado:actualEnd a owl:DatatypeProperty; rdfs:label "실제 완료일시"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:dateTime .
+ado:recordAsOf a owl:DatatypeProperty; rdfs:label "기록 기준일시"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:dateTime .
+ado:issuedOn a owl:DatatypeProperty; rdfs:label "발행일"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:date .
+ado:plannedQuantity a owl:DatatypeProperty; rdfs:label "계획 생산수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:producedQuantity a owl:DatatypeProperty; rdfs:label "조립 완료 생산수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:firstPassCount a owl:DatatypeProperty; rdfs:label "최초 합격수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:firstFailCount a owl:DatatypeProperty; rdfs:label "최초 불합격수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:reworkTargetCount a owl:DatatypeProperty; rdfs:label "재작업 대상수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:retestPassCount a owl:DatatypeProperty; rdfs:label "재검사 합격수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:currentPassCount a owl:DatatypeProperty; rdfs:label "현재 검사 합격수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:currentFailCount a owl:DatatypeProperty; rdfs:label "현재 검사 불합격수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:unproducedCount a owl:DatatypeProperty; rdfs:label "미생산 수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:packedCount a owl:DatatypeProperty; rdfs:label "포장 완료수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:shipmentApprovedCount a owl:DatatypeProperty; rdfs:label "출하 승인수량"@ko; rdfs:domain ado:WorkOrder; rdfs:range xsd:integer .
+ado:workResponsible a owl:ObjectProperty; rdfs:label "작업 책임자"@ko; rdfs:domain ado:WorkOrder; rdfs:range ado:Employee .
+ado:inspectionResponsible a owl:ObjectProperty; rdfs:label "검사 담당자"@ko; rdfs:domain ado:WorkOrder; rdfs:range ado:Employee .
+ado:usesMachine a owl:ObjectProperty; rdfs:label "배정 설비"@ko; rdfs:domain ado:WorkOrder; rdfs:range ado:Machine .
+ado:lotForProduct a owl:ObjectProperty; rdfs:label "생산 로트의 제품"@ko; rdfs:domain ado:ProductionLot; rdfs:range ado:Product .
+ado:hasSerialNumber a owl:DatatypeProperty; rdfs:label "시리얼번호"@ko; rdfs:domain ado:ManufacturedUnit; rdfs:range xsd:string .
+ado:belongsToProductionLot a owl:ObjectProperty; rdfs:label "개별 제품의 생산 로트"@ko; rdfs:domain ado:ManufacturedUnit; rdfs:range ado:ProductionLot .
+ado:usesMaterialLot a owl:ObjectProperty; rdfs:label "확인된 투입 자재 로트"@ko; rdfs:domain ado:ManufacturedUnit; rdfs:range ado:MaterialLot .
+ado:receivedOn a owl:DatatypeProperty; rdfs:label "자재 입고일"@ko; rdfs:domain ado:MaterialLot; rdfs:range xsd:date .
+ado:receivedQuantity a owl:DatatypeProperty; rdfs:label "기록된 최초 입고수량"@ko; rdfs:domain ado:MaterialLot; rdfs:range xsd:integer .
+ado:consumptionRecordId a owl:DatatypeProperty; rdfs:label "원문 자재 투입 기록번호"@ko; rdfs:domain ado:MaterialAllocation; rdfs:range xsd:string .
+ado:allocationForProductionLot a owl:ObjectProperty; rdfs:label "배정 대상 생산 로트"@ko; rdfs:domain ado:MaterialAllocation; rdfs:range ado:ProductionLot .
+ado:assignedMaterialLot a owl:ObjectProperty; rdfs:label "배정 자재 로트"@ko; rdfs:domain ado:MaterialAllocation; rdfs:range ado:MaterialLot .
+ado:plannedConsumptionQuantity a owl:DatatypeProperty; rdfs:label "계획 소요량"@ko; rdfs:domain ado:MaterialAllocation; rdfs:range xsd:integer .
+ado:actualConsumptionQuantity a owl:DatatypeProperty; rdfs:label "실제 투입량"@ko; rdfs:domain ado:MaterialAllocation; rdfs:range xsd:integer .
+ado:consumptionUnit a owl:DatatypeProperty; rdfs:label "자재 수량 단위"@ko; rdfs:domain ado:MaterialAllocation; rdfs:range xsd:string .
+ado:inspectionKind a owl:DatatypeProperty; rdfs:label "검사 구분"@ko; rdfs:domain ado:Inspection; rdfs:range xsd:string .
+ado:referencesInspection a owl:ObjectProperty; rdfs:label "참조 최초 검사"@ko; rdfs:domain ado:Inspection; rdfs:range ado:Inspection .
+ado:inspectedUnitCount a owl:DatatypeProperty; rdfs:label "종합 검사수량"@ko; rdfs:domain ado:Inspection; rdfs:range xsd:integer .
+ado:passedUnitCount a owl:DatatypeProperty; rdfs:label "종합 합격수량"@ko; rdfs:domain ado:Inspection; rdfs:range xsd:integer .
+ado:failedUnitCount a owl:DatatypeProperty; rdfs:label "종합 불합격수량"@ko; rdfs:domain ado:Inspection; rdfs:range xsd:integer .
+ado:inspectedBy a owl:ObjectProperty; rdfs:label "검사자"@ko; rdfs:domain ado:Inspection; rdfs:range ado:Employee .
+ado:inspectionStart a owl:DatatypeProperty; rdfs:label "검사 시작일시"@ko; rdfs:domain ado:Inspection; rdfs:range xsd:dateTime .
+ado:inspectionEnd a owl:DatatypeProperty; rdfs:label "검사 완료일시"@ko; rdfs:domain ado:Inspection; rdfs:range xsd:dateTime .
+ado:hasResultRow a owl:ObjectProperty; rdfs:label "검사항목별 결과"@ko; rdfs:domain ado:Inspection; rdfs:range ado:InspectionResultRow .
+ado:resultId a owl:DatatypeProperty; rdfs:label "결과 행 식별자"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:ofInspection a owl:ObjectProperty; rdfs:label "소속 검사"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range ado:Inspection .
+ado:ofCriterion a owl:ObjectProperty; rdfs:label "검사항목"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range ado:InspectionCriterion .
+ado:forUnit a owl:ObjectProperty; rdfs:label "개별 검사 대상"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range ado:ManufacturedUnit .
+ado:targetKind a owl:DatatypeProperty; rdfs:label "대상 구분"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:measurementName a owl:DatatypeProperty; rdfs:label "측정항목"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:measurementUnit a owl:DatatypeProperty; rdfs:label "측정 단위"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:acceptanceCriterion a owl:DatatypeProperty; rdfs:label "행의 합격 기준"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:measuredMinimum a owl:DatatypeProperty; rdfs:label "측정 최소값"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:decimal .
+ado:measuredMaximum a owl:DatatypeProperty; rdfs:label "측정 최대값"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:decimal .
+ado:resultQuantity a owl:DatatypeProperty; rdfs:label "해당 행의 검사수량"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:integer .
+ado:resultVerdict a owl:DatatypeProperty; rdfs:label "행의 판정"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:confirmationText a owl:DatatypeProperty; rdfs:label "확인 결과"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range xsd:string .
+ado:relatedQualityAction a owl:ObjectProperty; rdfs:label "관련 품질 조치"@ko; rdfs:domain ado:InspectionResultRow; rdfs:range ado:QualityAction .
+ado:actionId a owl:DatatypeProperty; rdfs:label "조치 기록번호"@ko; rdfs:domain ado:QualityAction; rdfs:range xsd:string .
+ado:actionForLot a owl:ObjectProperty; rdfs:label "조치 대상 생산 로트"@ko; rdfs:domain ado:QualityAction; rdfs:range ado:ProductionLot .
+ado:actionForMaterialLot a owl:ObjectProperty; rdfs:label "조치 대상 자재 로트"@ko; rdfs:domain ado:QualityAction; rdfs:range ado:MaterialLot .
+ado:actionForUnit a owl:ObjectProperty; rdfs:label "조치 대상 개별 제품"@ko; rdfs:domain ado:QualityAction; rdfs:range ado:ManufacturedUnit .
+ado:triggeredByInspection a owl:ObjectProperty; rdfs:label "조치 근거 검사"@ko; rdfs:domain ado:QualityAction; rdfs:range ado:Inspection .
+ado:actionStart a owl:DatatypeProperty; rdfs:label "조치 시작일시"@ko; rdfs:domain ado:QualityAction; rdfs:range xsd:dateTime .
+ado:actionEnd a owl:DatatypeProperty; rdfs:label "조치 종료일시"@ko; rdfs:domain ado:QualityAction; rdfs:range xsd:dateTime .
+ado:actionStatus a owl:DatatypeProperty; rdfs:label "조치 상태"@ko; rdfs:domain ado:QualityAction; rdfs:range xsd:string .
+ado:actionDescription a owl:DatatypeProperty; rdfs:label "조치 내용"@ko; rdfs:domain ado:QualityAction; rdfs:range xsd:string .
+ado:heldPassedUnitCount a owl:DatatypeProperty; rdfs:label "출하 보류된 검사 합격 제품 수량"@ko; rdfs:domain ado:QualityHold; rdfs:range xsd:integer .
+ado:heldUnusedMaterialQuantity a owl:DatatypeProperty; rdfs:label "사용 보류된 미투입 자재 수량"@ko; rdfs:domain ado:QualityHold; rdfs:range xsd:integer .
+ado:causeDeterminationStatus a owl:DatatypeProperty; rdfs:label "원인 확정 상태"@ko; rdfs:domain ado:QualityHold; rdfs:range xsd:string .
+ado:precedesWorkOrderStep a owl:TransitiveProperty .
+ado:nextWorkOrderStep rdfs:subPropertyOf ado:precedesWorkOrderStep .
+ado:producedQuantity rdfs:comment "조립 완료 고유 장치 수량. 재검사 수량을 더하지 않는다."@ko .
+ado:currentPassCount rdfs:comment "기록 기준시점의 검사 합격 수량. 출하 승인 수량과 다를 수 있다."@ko .
+ado:resultQuantity rdfs:comment "검사항목별 수량. 같은 장치가 여러 행에 반복되어 행 간 합산하지 않는다."@ko .
+ado:relatedQualityAction rdfs:comment "원문의 조치기록번호를 연결한다. 최초 불합격 행에서는 후속 조치, 재검사 행에서는 선행 조치를 가리킨다."@ko .
+ado:approvedSupplier rdfs:comment "해당 BOM 개정의 구성 행에서 승인한 공급업체. 실제 입고 로트의 공급업체와 구분한다."@ko .
+ado:nextWorkOrderStep rdfs:comment "작업지시서 공정표의 다음 행. 후속 단계가 실제 수행됐다는 뜻은 아니다."@ko .
+ado:precedesWorkOrderStep rdfs:comment "같은 작업지시 공정표에서 뒤에 오는 모든 단계와의 순서 관계. 실제 수행이나 완료를 뜻하지 않는다."@ko .
+ado:stepStatus rdfs:comment "원문 기록 기준 완료·미착수·보류를 구분한다. 실제 수행 시각이 없는 단계에 시각을 추정하지 않는다."@ko .
+ado:causeDeterminationStatus rdfs:comment "조사 결과로 원인이 확정됐는지의 기록 상태. 관련 자재 로트를 원인으로 단정하지 않는다."@ko .

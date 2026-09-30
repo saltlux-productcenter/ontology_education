@@ -1,0 +1,2557 @@
+app:
+  description: 색인된 문서 목록을 확인하거나 선택한 문서의 내용을 섹션 순서대로 조회
+  icon: ri-git-merge-line
+  icon_background: '#14b8a6'
+  mode: workflow
+  name: ontology_document_read
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Elasticsearch 주소. 끝에 슬래시를 붙이지 않는다
+    id: 47221646-da7c-e90a-f0ac-fa04e3c38d06
+    name: ES_BASE_URL
+    selector:
+    - env
+    - ES_BASE_URL
+    value: http://192.168.250.101:19200
+    value_type: string
+  - description: 표준 계층 색인 v2.0 KB 인덱스명. 단일 인덱스 또는 단일 인덱스를 가리키는 alias
+    id: baded43b-f365-53d5-72ef-ddde34ef82ad
+    name: ES_INDEX
+    selector:
+    - env
+    - ES_INDEX
+    value: manufacturing_erp
+    value_type: string
+  - description: Authorization 헤더 값(ApiKey ... 또는 Basic ...). 인증 없는 ES 면 빈 문자열. secret
+      이라 DSL 을 내보내면 값이 비워진다
+    id: 6fd13c7c-f68b-693e-7473-ec0e656b0709
+    name: ES_AUTH_HEADER
+    selector:
+    - env
+    - ES_AUTH_HEADER
+    value: ''
+    value_type: secret
+  - description: 다중 테넌트 색인의 tenant_id 값. 빈 문자열이면 tenant 조건을 걸지 않는다
+    id: 5affa868-a237-b703-9e1c-e27ef9172cfb
+    name: TENANT_ID
+    selector:
+    - env
+    - TENANT_ID
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: start-source-prep-target
+      label: ''
+      source: start
+      sourceHandle: source
+      target: prep
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: root-source-pick-target
+      label: ''
+      selected: false
+      source: root
+      sourceHandle: source
+      target: pick
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: http-request
+      id: pick-source-read-target
+      label: ''
+      selected: false
+      source: pick
+      sourceHandle: source
+      target: read
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: read-source-shape-target
+      label: ''
+      selected: false
+      source: read
+      sourceHandle: source
+      target: shape
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: prep-source-gate-target
+      label: ''
+      source: prep
+      sourceHandle: source
+      target: gate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate-ok-root-target
+      label: ''
+      source: gate
+      sourceHandle: ok
+      target: root
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: gate-false-precheck_fail-target
+      label: ''
+      source: gate
+      sourceHandle: 'false'
+      target: precheck_fail
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: shape-source-merge-target
+      label: ''
+      selected: false
+      source: shape
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: precheck_fail-source-merge-target
+      label: ''
+      selected: false
+      source: precheck_fail
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: code
+      id: merge-source-unpack-target
+      label: ''
+      selected: false
+      source: merge
+      sourceHandle: source
+      target: unpack
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: end
+      id: unpack-source-done-target
+      label: ''
+      selected: false
+      source: unpack
+      sourceHandle: source
+      target: done
+      targetHandle: target
+      type: custom
+    nodes:
+    - computedPosition:
+        x: 80
+        y: 140
+        z: 0
+      data:
+        desc: document_hint 와 position 을 받는다. 둘 다 선택이며 인덱스명과 주소는 환경변수다
+        display_variables:
+        - document_hint
+        - position
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 인자 받기
+        type: start
+        variables:
+        - default: ''
+          description: '읽을 문서의 문서명 단서 또는 document_id 다. 두 인자를 모두 비우면 문서 목록을 돌려준다.
+            문서명 단서는 제목에 들어 있는 낱말이며, 넣은 낱말이 모두 제목에 있어야 그 문서로 확정된다. 앞선 결과에서 고른 문서라면
+            document_id 를 그대로 넣는 것이 가장 확실하다. position 을 넣으면 이 값은 쓰지 않는다. 예시 1: 시립
+            도서관 이용 규정. 예시 2: doc-2026-library-rules-001. 사용자가 말한 단서나 앞선 도구 결과의 값을
+            그대로 쓰고 문서 이름을 지어내지 않는다.'
+          label: 문서명 단서
+          required: false
+          type: text-input
+          variable: document_hint
+        - default: ''
+          description: '읽기 시작 위치다. 앞 호출이 돌려준 next_position 또는 prev_position 값, 또는
+            검색 결과의 section_chunk_id 값을 한 글자도 바꾸지 않고 넣는다. 비우면 문서 처음부터 읽고, 문서 목록이면 첫
+            목록부터 돌려준다. child 층 chunk_id(:child: 가 든 값)는 받지 않는다. 예시 1: doc-2026-library-rules-001:v3:parent:0004.
+            예시 2: doc-2026-library-rules-001:v3:parent:0004@2870. 도구가 돌려준 값을 그대로 쓰고
+            위치 값을 직접 만들거나 숫자를 고치지 않는다.'
+          label: 읽기 위치
+          required: false
+          type: text-input
+          variable: position
+      dimensions:
+        height: 164
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: start
+          position: right
+          type: source
+          width: 8
+          x: 276.9997930328814
+          y: 23.000019038406233
+        target: null
+      id: start
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 460
+        y: 140
+        z: 0
+      data:
+        code: "\nWARN = {'no_targets': ['단서나 읽기 위치에 맞는 문서를 찾지 못했다(지금 조회 가능한 후보: {candidates})',\
+          \ '후보의 document_id 하나를 document_hint 에 넣어 한 번만 다시 호출하거나, 두 인자를 비워 목록을 확인한다.\
+          \ 같은 단서로 다시 호출하지 않는다'], 'ambiguous': ['단서가 문서 {n}건과 일치한다. 후보는 documents\
+          \ 에 있다', '뜻한 문서의 document_id 를 document_hint 에 넣어 한 번만 다시 호출하고, 고를 수 없으면\
+          \ 사용자에게 묻는다'], 'no_results': ['조회 가능한 문서가 하나도 없다', 'ES_INDEX 와 TENANT_ID\
+          \ 설정이 맞는지 사용자에게 확인한다'], 'position_out_of_range': ['읽기 위치가 문서나 목록의 끝을 넘었다',\
+          \ 'position 을 비우고 처음부터 다시 호출한다'], 'section_layer_missing': ['이 문서에 parent\
+          \ 섹션이 없다', 'abox_search_keyword 나 abox_search_semantic 에 이 document_id 를\
+          \ 넣어 검색한다'], 'position_invalid': ['position 형식이 틀렸거나 child 층 chunk_id 다',\
+          \ '도구가 돌려준 next_position, prev_position, 검색 결과의 section_chunk_id 가운데 하나를\
+          \ 그대로 넣는다'], 'more_documents': ['목록이 더 있다(전체 {n}건)', '필요하면 next_position\
+          \ 을 position 에 넣어 다음 목록을 받는다'], 'document_hint_ignored': ['position 이 있어\
+          \ document_hint 를 쓰지 않았다', '다른 문서를 읽으려면 position 을 비우고 document_hint 만 넣는다'],\
+          \ 'position_version_changed': ['읽기 위치의 판 번호와 현재 판 번호가 달라 같은 chunk_order\
+          \ 에서 읽었다(읽기 위치 {old}, 현재 {new})', '앞 결과와 내용이 이어지는지 확인하고, 어긋나면 position 을\
+          \ 비워 처음부터 읽는다'], 'result_trimmed': ['결과 길이 상한 8,000자에 맞춰 뒤쪽 항목을 빼거나 섹션을\
+          \ 더 짧게 잘랐다(줄인 항목 {n}건)', 'next_position 을 position 에 넣어 이어 읽는다'], 'search_failed':\
+          \ ['ES 조회가 실패했다(HTTP {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'es_base_url_missing':\
+          \ ['환경변수 ES_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는\
+          \ 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX\
+          \ 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시\
+          \ 호출하지 말고 사용자에게 알린다'], 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가\
+          \ CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고\
+          \ 사용자에게 알린다'], 'tenant_id_missing': ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어\
+          \ 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\n\
+          def _to_int(value):\n    try:\n        return int(value)\n    except Exception:\n\
+          \        return 0\n\n\ndef _parse_json(raw):\n    import json\n    if isinstance(raw,\
+          \ (dict, list)):\n        return raw\n    if not raw:\n        return None\n\
+          \    try:\n        return json.loads(raw)\n    except Exception:\n     \
+          \   return None\n\n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\nCONFIG_CHECKS = [['es_base_url', 'es_base_url_missing',\
+          \ True], ['es_index', 'es_index_missing', True], ['es_auth_header', 'es_auth_header_missing',\
+          \ False], ['tenant_id', 'tenant_id_missing', False]]\n\n\ndef _config_error(values):\n\
+          \    missing = []\n    for name, code, empty_is_unset in CONFIG_CHECKS:\n\
+          \        raw = values.get(name)\n        text = str(raw if raw is not None\
+          \ else \"\").strip()\n        if (not text and empty_is_unset) or text.startswith(\"\
+          CHANGE-ME\"):\n            missing.append(_wtext(code))\n    return \";\
+          \ \".join(missing)\n\n\ndef _level_filters(level, tenant_id):\n    filters\
+          \ = [{\"term\": {\"chunk_level\": level}},\n               {\"term\": {\"\
+          is_latest\": True}},\n               {\"term\": {\"lifecycle_state\": \"\
+          active\"}}]\n    tenant = str(tenant_id if tenant_id is not None else \"\
+          \").strip()\n    if tenant and not tenant.startswith(\"CHANGE-ME\"):\n \
+          \       filters.append({\"term\": {\"tenant_id\": tenant}})\n    return\
+          \ filters\n\nDOCS_RE = r\"^#docs:(\\d+)$\"\nPOS_RE = r\"^(?P<doc>.+):v(?P<ver>\\\
+          d+):(?P<lvl>root|parent|child):(?P<ord>\\d+)(?:@(?P<off>\\d+))?$\"\n\n\n\
+          def main(document_hint, position, es_base_url, es_index, es_auth_header,\
+          \ tenant_id):\n    import re\n    import unicodedata\n\n    hint = str(document_hint\
+          \ if document_hint is not None else \"\").strip()\n    pos = str(position\
+          \ if position is not None else \"\").strip()\n    config_error = _config_error({\"\
+          es_base_url\": es_base_url, \"es_index\": es_index,\n                  \
+          \                \"es_auth_header\": es_auth_header, \"tenant_id\": tenant_id})\n\
+          \    root_filters = _level_filters(\"root\", tenant_id)\n    parent_filters\
+          \ = _level_filters(\"parent\", tenant_id)\n    hint_norm = re.sub(r\"\\\
+          s+\", \" \", unicodedata.normalize(\"NFKC\", hint)).strip().casefold()\n\
+          \n    warnings = []\n    arg_error = \"\"\n    mode = \"list\"\n    root_from\
+          \ = 0\n    pos_doc_id = \"\"\n    pos_version = 0\n    pos_order = -1\n\
+          \    pos_offset = 0\n    if pos:\n        if hint:\n            warnings.append(_wtext(\"\
+          document_hint_ignored\"))\n        docs_match = re.match(DOCS_RE, pos)\n\
+          \        pos_match = None if docs_match else re.match(POS_RE, pos)\n   \
+          \     if docs_match:\n            root_from = int(docs_match.group(1))\n\
+          \        elif pos_match and pos_match.group(\"lvl\") != \"child\":\n   \
+          \         mode = \"position\"\n            pos_doc_id = pos_match.group(\"\
+          doc\")\n            pos_version = int(pos_match.group(\"ver\"))\n      \
+          \      if pos_match.group(\"lvl\") == \"parent\":\n                pos_order\
+          \ = int(pos_match.group(\"ord\"))\n                pos_offset = int(pos_match.group(\"\
+          off\") or 0)\n        else:\n            mode = \"\"\n            arg_error\
+          \ = _wtext(\"position_invalid\")\n    elif hint:\n        mode = \"hint\"\
+          \n\n    title_sort = [{\"title\": \"asc\"}, {\"document_id\": \"asc\"}]\n\
+          \    score_sort = [{\"_score\": \"desc\"}, {\"title\": \"asc\"}, {\"document_id\"\
+          : \"asc\"}]\n    if mode == \"hint\":\n        root_query = {\"bool\": {\n\
+          \            \"filter\": root_filters,\n            \"should\": [\n    \
+          \            {\"term\": {\"document_id\": {\"value\": hint, \"boost\": 100,\
+          \ \"_name\": \"id\"}}},\n                {\"multi_match\": {\"query\": hint,\
+          \ \"fields\": [\"title.nori\", \"title\"],\n                           \
+          \      \"type\": \"best_fields\", \"operator\": \"and\", \"lenient\": True,\n\
+          \                                 \"boost\": 10, \"_name\": \"strict\"}},\n\
+          \                {\"multi_match\": {\"query\": hint, \"fields\": [\"title.nori\"\
+          , \"title\"],\n                                 \"type\": \"best_fields\"\
+          , \"operator\": \"or\", \"lenient\": True,\n                           \
+          \      \"_name\": \"loose\"}},\n            ],\n            \"minimum_should_match\"\
+          : 0}}\n        root_sort = score_sort\n    elif mode == \"position\":\n\
+          \        root_query = {\"bool\": {\n            \"filter\": root_filters,\n\
+          \            \"should\": [{\"term\": {\"document_id\": {\"value\": pos_doc_id,\
+          \ \"_name\": \"id\"}}}],\n            \"minimum_should_match\": 0}}\n  \
+          \      root_sort = score_sort\n    else:\n        root_query = {\"bool\"\
+          : {\"filter\": root_filters}}\n        root_sort = title_sort\n\n    return\
+          \ {\"mode\": mode, \"root_query\": root_query, \"root_sort\": root_sort,\
+          \ \"root_from\": root_from,\n            \"pos_doc_id\": pos_doc_id, \"\
+          pos_version\": pos_version, \"pos_order\": pos_order,\n            \"pos_offset\"\
+          : pos_offset, \"hint_norm\": hint_norm, \"parent_filters\": parent_filters,\n\
+          \            \"input_warning\": \"; \".join(warnings), \"config_error\"\
+          : config_error,\n            \"arg_error\": arg_error}\n"
+        code_language: python3
+        desc: 방식(목록, 단서, 위치)을 판정해 root 조회 조건과 parent filter 를 만든다. 환경변수와 position
+          형식을 점검한다
+        outputs:
+          arg_error:
+            children: null
+            type: string
+          config_error:
+            children: null
+            type: string
+          hint_norm:
+            children: null
+            type: string
+          input_warning:
+            children: null
+            type: string
+          mode:
+            children: null
+            type: string
+          parent_filters:
+            children: null
+            type: array[object]
+          pos_doc_id:
+            children: null
+            type: string
+          pos_offset:
+            children: null
+            type: number
+          pos_order:
+            children: null
+            type: number
+          pos_version:
+            children: null
+            type: number
+          root_from:
+            children: null
+            type: number
+          root_query:
+            children: null
+            type: object
+          root_sort:
+            children: null
+            type: array[object]
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 인자 해석·설정 점검
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - document_hint
+          variable: document_hint
+        - value_selector:
+          - start
+          - position
+          variable: position
+        - value_selector:
+          - env
+          - ES_BASE_URL
+          variable: es_base_url
+        - value_selector:
+          - env
+          - ES_INDEX
+          variable: es_index
+        - value_selector:
+          - env
+          - ES_AUTH_HEADER
+          variable: es_auth_header
+        - value_selector:
+          - env
+          - TENANT_ID
+          variable: tenant_id
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: prep
+          position: right
+          type: source
+          width: 8
+          x: 276.9997160465726
+          y: 23.000019038406233
+        target:
+        - height: 8
+          id: target
+          nodeId: prep
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 23.000019038406233
+      id: prep
+      initialized: false
+      isParent: false
+      position:
+        x: 460
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1320
+        y: 140
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"size": 15, "from": "{{#prep.root_from#}}", "track_total_hits":
+              true, "_source": ["document_id", "title", "file_name", "category", "published_at",
+              "pages", "doc_version", "content"], "query": "{{#prep.root_query#}}",
+              "sort": "{{#prep.root_sort#}}"}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: root 층 15건. named query id, strict, loose 로 확정 후보와 조회 가능한 문서를 함께 받는다
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8
+
+          Authorization:{{#env.ES_AUTH_HEADER#}}'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: 문서(root) 조회
+        type: http-request
+        url: '{{#env.ES_BASE_URL#}}/{{#env.ES_INDEX#}}/_search'
+        variables: []
+      dimensions:
+        height: 140
+        width: 312
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: root
+          position: right
+          type: source
+          width: 8
+          x: 308.5466524451042
+          y: 23.000019038406233
+        target:
+        - height: 8
+          id: target
+          nodeId: root
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 23.000019038406233
+      id: root
+      initialized: false
+      isParent: false
+      position:
+        x: 1320
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1314.7219683569083
+        y: 388.9725825461096
+        z: 0
+      data:
+        code: "\nWARN = {'no_targets': ['단서나 읽기 위치에 맞는 문서를 찾지 못했다(지금 조회 가능한 후보: {candidates})',\
+          \ '후보의 document_id 하나를 document_hint 에 넣어 한 번만 다시 호출하거나, 두 인자를 비워 목록을 확인한다.\
+          \ 같은 단서로 다시 호출하지 않는다'], 'ambiguous': ['단서가 문서 {n}건과 일치한다. 후보는 documents\
+          \ 에 있다', '뜻한 문서의 document_id 를 document_hint 에 넣어 한 번만 다시 호출하고, 고를 수 없으면\
+          \ 사용자에게 묻는다'], 'no_results': ['조회 가능한 문서가 하나도 없다', 'ES_INDEX 와 TENANT_ID\
+          \ 설정이 맞는지 사용자에게 확인한다'], 'position_out_of_range': ['읽기 위치가 문서나 목록의 끝을 넘었다',\
+          \ 'position 을 비우고 처음부터 다시 호출한다'], 'section_layer_missing': ['이 문서에 parent\
+          \ 섹션이 없다', 'abox_search_keyword 나 abox_search_semantic 에 이 document_id 를\
+          \ 넣어 검색한다'], 'position_invalid': ['position 형식이 틀렸거나 child 층 chunk_id 다',\
+          \ '도구가 돌려준 next_position, prev_position, 검색 결과의 section_chunk_id 가운데 하나를\
+          \ 그대로 넣는다'], 'more_documents': ['목록이 더 있다(전체 {n}건)', '필요하면 next_position\
+          \ 을 position 에 넣어 다음 목록을 받는다'], 'document_hint_ignored': ['position 이 있어\
+          \ document_hint 를 쓰지 않았다', '다른 문서를 읽으려면 position 을 비우고 document_hint 만 넣는다'],\
+          \ 'position_version_changed': ['읽기 위치의 판 번호와 현재 판 번호가 달라 같은 chunk_order\
+          \ 에서 읽었다(읽기 위치 {old}, 현재 {new})', '앞 결과와 내용이 이어지는지 확인하고, 어긋나면 position 을\
+          \ 비워 처음부터 읽는다'], 'result_trimmed': ['결과 길이 상한 8,000자에 맞춰 뒤쪽 항목을 빼거나 섹션을\
+          \ 더 짧게 잘랐다(줄인 항목 {n}건)', 'next_position 을 position 에 넣어 이어 읽는다'], 'search_failed':\
+          \ ['ES 조회가 실패했다(HTTP {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'es_base_url_missing':\
+          \ ['환경변수 ES_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는\
+          \ 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX\
+          \ 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시\
+          \ 호출하지 말고 사용자에게 알린다'], 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가\
+          \ CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고\
+          \ 사용자에게 알린다'], 'tenant_id_missing': ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어\
+          \ 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\n\
+          def _to_int(value):\n    try:\n        return int(value)\n    except Exception:\n\
+          \        return 0\n\n\ndef _parse_json(raw):\n    import json\n    if isinstance(raw,\
+          \ (dict, list)):\n        return raw\n    if not raw:\n        return None\n\
+          \    try:\n        return json.loads(raw)\n    except Exception:\n     \
+          \   return None\n\n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\ndef main(root_body, root_status, mode, root_from,\
+          \ hint_norm, pos_doc_id, pos_version,\n         pos_order, pos_offset, parent_filters):\n\
+          \    import re\n    import unicodedata\n\n    CANDIDATE_MAX = 10\n    SUGGEST_MAX\
+          \ = 5\n    SUMMARY_CHARS = 80\n\n    result = {\"outcome\": \"\", \"document\"\
+          : {}, \"documents\": [], \"document_total\": 0,\n              \"list_next\"\
+          : \"\", \"read_query\": {\"match_none\": {}}, \"post_filter\": {\"match_all\"\
+          : {}},\n              \"prev_filter\": {\"match_none\": {}}, \"start_order\"\
+          : -1, \"start_offset\": 0,\n              \"pick_warning\": \"\"}\n\n  \
+          \  data = _parse_json(root_body)\n    if _http_failed(root_status, data):\n\
+          \        result[\"outcome\"] = \"search_failed\"\n        result[\"pick_warning\"\
+          ] = _wtext(\"search_failed\", code=_to_int(root_status))\n        return\
+          \ result\n\n    rows = []\n    for hit in _hits_of(data):\n        if not\
+          \ isinstance(hit, dict):\n            continue\n        src = hit.get(\"\
+          _source\") if isinstance(hit.get(\"_source\"), dict) else {}\n        document_id\
+          \ = str(src.get(\"document_id\") or \"\")\n        if not document_id:\n\
+          \            continue\n        matched = hit.get(\"matched_queries\")\n\
+          \        if isinstance(matched, dict):\n            matched = list(matched.keys())\n\
+          \        if not isinstance(matched, list):\n            matched = []\n \
+          \       rows.append({\"document_id\": document_id,\n                   \
+          \  \"title\": str(src.get(\"title\") or \"\"),\n                     \"\
+          file_name\": str(src.get(\"file_name\") or \"\"),\n                    \
+          \ \"category\": str(src.get(\"category\") or \"\"),\n                  \
+          \   \"published_at\": str(src.get(\"published_at\") or \"\"),\n        \
+          \             \"pages\": _to_int(src.get(\"pages\")),\n                \
+          \     \"doc_version\": _to_int(src.get(\"doc_version\")),\n            \
+          \         \"summary\": str(src.get(\"content\") or \"\")[:SUMMARY_CHARS],\n\
+          \                     \"matched\": [str(name) for name in matched]})\n \
+          \   total = _total_of(data)\n\n    def brief(row):\n        return {\"document_id\"\
+          : row[\"document_id\"], \"title\": row[\"title\"],\n                \"category\"\
+          : row[\"category\"], \"published_at\": row[\"published_at\"],\n        \
+          \        \"pages\": row[\"pages\"], \"doc_version\": row[\"doc_version\"\
+          ],\n                \"summary\": row[\"summary\"]}\n\n    mode_text = str(mode\
+          \ or \"\")\n    if mode_text == \"list\":\n        start = _to_int(root_from)\n\
+          \        result[\"outcome\"] = \"list\"\n        result[\"documents\"] =\
+          \ [brief(row) for row in rows]\n        result[\"document_total\"] = total\n\
+          \        if rows and start + len(rows) < total:\n            result[\"list_next\"\
+          ] = \"#docs:\" + str(start + len(rows))\n        return result\n\n    def\
+          \ norm_title(text):\n        return re.sub(r\"\\s+\", \" \", unicodedata.normalize(\"\
+          NFKC\", str(text or \"\"))).strip().casefold()\n\n    def title_forms(title):\n\
+          \        base = norm_title(title)\n        forms = [base]\n        stem\
+          \ = re.sub(r\"\\.[0-9a-z]{1,5}$\", \"\", base)\n        if stem and stem\
+          \ != base:\n            forms.append(stem)\n        return forms\n\n   \
+          \ def suggestions():\n        pool = [row for row in rows if \"loose\" in\
+          \ row[\"matched\"] or \"strict\" in row[\"matched\"]]\n        if not pool:\n\
+          \            pool = sorted(rows, key=lambda row: (row[\"title\"], row[\"\
+          document_id\"]))\n        text = \" | \".join(row[\"title\"] + \"(\" + row[\"\
+          document_id\"] + \")\" for row in pool[:SUGGEST_MAX])\n        return text\
+          \ or \"없음\"\n\n    picked = None\n    id_rows = [row for row in rows if\
+          \ \"id\" in row[\"matched\"]]\n    if id_rows:\n        picked = id_rows[0]\n\
+          \    elif mode_text == \"hint\":\n        strict = [row for row in rows\
+          \ if \"strict\" in row[\"matched\"]]\n        if len(strict) == 1:\n   \
+          \         picked = strict[0]\n        elif len(strict) > 1:\n          \
+          \  target = str(hint_norm or \"\")\n            exact = [row for row in\
+          \ strict if target and target in title_forms(row[\"title\"])]\n        \
+          \    if len(exact) == 1:\n                picked = exact[0]\n          \
+          \  else:\n                result[\"outcome\"] = \"ambiguous\"\n        \
+          \        result[\"documents\"] = [brief(row) for row in strict[:CANDIDATE_MAX]]\n\
+          \                result[\"document_total\"] = len(strict)\n            \
+          \    result[\"pick_warning\"] = _wtext(\"ambiguous\", n=len(strict))\n \
+          \               return result\n    if picked is None:\n        result[\"\
+          outcome\"] = \"no_targets\"\n        result[\"pick_warning\"] = _wtext(\"\
+          no_targets\", candidates=suggestions())\n        return result\n\n    document\
+          \ = {\"document_id\": picked[\"document_id\"], \"title\": picked[\"title\"\
+          ],\n                \"file_name\": picked[\"file_name\"], \"category\":\
+          \ picked[\"category\"],\n                \"published_at\": picked[\"published_at\"\
+          ], \"pages\": picked[\"pages\"],\n                \"doc_version\": picked[\"\
+          doc_version\"]}\n    start_order = -1\n    start_offset = 0\n    order_in\
+          \ = _to_int(pos_order)\n    if mode_text == \"position\" and order_in >=\
+          \ 0:\n        start_order = order_in\n        start_offset = max(0, _to_int(pos_offset))\n\
+          \        version_in = _to_int(pos_version)\n        if version_in and document[\"\
+          doc_version\"] and version_in != document[\"doc_version\"]:\n          \
+          \  result[\"pick_warning\"] = _wtext(\"position_version_changed\", old=version_in,\n\
+          \                                            new=document[\"doc_version\"\
+          ])\n\n    filters = [dict(item) for item in (parent_filters if isinstance(parent_filters,\
+          \ list) else [])\n               if isinstance(item, dict)]\n    filters.append({\"\
+          term\": {\"document_id\": document[\"document_id\"]}})\n    result[\"outcome\"\
+          ] = \"picked\"\n    result[\"document\"] = document\n    result[\"read_query\"\
+          ] = {\"bool\": {\"filter\": filters}}\n    result[\"post_filter\"] = {\"\
+          range\": {\"chunk_order\": {\"gte\": start_order}}}\n    result[\"prev_filter\"\
+          ] = {\"range\": {\"chunk_order\": {\"lt\": start_order}}}\n    result[\"\
+          start_order\"] = start_order\n    result[\"start_offset\"] = start_offset\n\
+          \    return result\n"
+        code_language: python3
+        desc: id 일치, strict 1건, 제목 완전 일치 1건 순으로 확정하고 parent 읽기 조건을 만든다. 확정하지 못하면 read_query
+          가 match_none 이다
+        outputs:
+          document:
+            children: null
+            type: object
+          document_total:
+            children: null
+            type: number
+          documents:
+            children: null
+            type: array[object]
+          list_next:
+            children: null
+            type: string
+          outcome:
+            children: null
+            type: string
+          pick_warning:
+            children: null
+            type: string
+          post_filter:
+            children: null
+            type: object
+          prev_filter:
+            children: null
+            type: object
+          read_query:
+            children: null
+            type: object
+          start_offset:
+            children: null
+            type: number
+          start_order:
+            children: null
+            type: number
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 문서 확정·읽기 조건 조립
+        type: code
+        variables:
+        - value_selector:
+          - root
+          - body
+          variable: root_body
+        - value_selector:
+          - root
+          - status_code
+          variable: root_status
+        - value_selector:
+          - prep
+          - mode
+          variable: mode
+        - value_selector:
+          - prep
+          - root_from
+          variable: root_from
+        - value_selector:
+          - prep
+          - hint_norm
+          variable: hint_norm
+        - value_selector:
+          - prep
+          - pos_doc_id
+          variable: pos_doc_id
+        - value_selector:
+          - prep
+          - pos_version
+          variable: pos_version
+        - value_selector:
+          - prep
+          - pos_order
+          variable: pos_order
+        - value_selector:
+          - prep
+          - pos_offset
+          variable: pos_offset
+        - value_selector:
+          - prep
+          - parent_filters
+          variable: parent_filters
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: pick
+          position: right
+          type: source
+          width: 8
+          x: 276.99981869498436
+          y: 22.999967714200334
+        target:
+        - height: 8
+          id: target
+          nodeId: pick
+          position: left
+          type: target
+          width: 8
+          x: -4.999901490372164
+          y: 22.999967714200334
+      id: pick
+      initialized: false
+      isParent: false
+      position:
+        x: 1314.7219683569083
+        y: 388.9725825461096
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 834.7219683569083
+        y: 388.9725825461096
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{"size": 9, "track_total_hits": true, "_source": ["chunk_id",
+              "chunk_order", "page_start", "page_end", "doc_version", "content"],
+              "query": "{{#pick.read_query#}}", "post_filter": "{{#pick.post_filter#}}",
+              "sort": [{"chunk_order": "asc"}], "aggs": {"prev": {"filter": "{{#pick.prev_filter#}}",
+              "aggs": {"last": {"top_hits": {"size": 1, "sort": [{"chunk_order": "desc"}],
+              "_source": ["chunk_id", "chunk_order"]}}}}, "order_stats": {"stats":
+              {"field": "chunk_order"}}}}'
+          type: json
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: 시작 위치부터 parent 9건과 앞 섹션, 전체 섹션 수 집계를 한 요청으로 받는다
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8
+
+          Authorization:{{#env.ES_AUTH_HEADER#}}'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: 섹션(parent) 읽기
+        type: http-request
+        url: '{{#env.ES_BASE_URL#}}/{{#env.ES_INDEX#}}/_search'
+        variables: []
+      dimensions:
+        height: 140
+        width: 312
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: read
+          position: right
+          type: source
+          width: 8
+          x: 308.5466524451042
+          y: 22.999967714200334
+        target:
+        - height: 8
+          id: target
+          nodeId: read
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 22.999967714200334
+      id: read
+      initialized: false
+      isParent: false
+      position:
+        x: 834.7219683569083
+        y: 388.9725825461096
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 454.7219683569083
+        y: 388.9725825461096
+        z: 0
+      data:
+        code: "\nWARN = {'no_targets': ['단서나 읽기 위치에 맞는 문서를 찾지 못했다(지금 조회 가능한 후보: {candidates})',\
+          \ '후보의 document_id 하나를 document_hint 에 넣어 한 번만 다시 호출하거나, 두 인자를 비워 목록을 확인한다.\
+          \ 같은 단서로 다시 호출하지 않는다'], 'ambiguous': ['단서가 문서 {n}건과 일치한다. 후보는 documents\
+          \ 에 있다', '뜻한 문서의 document_id 를 document_hint 에 넣어 한 번만 다시 호출하고, 고를 수 없으면\
+          \ 사용자에게 묻는다'], 'no_results': ['조회 가능한 문서가 하나도 없다', 'ES_INDEX 와 TENANT_ID\
+          \ 설정이 맞는지 사용자에게 확인한다'], 'position_out_of_range': ['읽기 위치가 문서나 목록의 끝을 넘었다',\
+          \ 'position 을 비우고 처음부터 다시 호출한다'], 'section_layer_missing': ['이 문서에 parent\
+          \ 섹션이 없다', 'abox_search_keyword 나 abox_search_semantic 에 이 document_id 를\
+          \ 넣어 검색한다'], 'position_invalid': ['position 형식이 틀렸거나 child 층 chunk_id 다',\
+          \ '도구가 돌려준 next_position, prev_position, 검색 결과의 section_chunk_id 가운데 하나를\
+          \ 그대로 넣는다'], 'more_documents': ['목록이 더 있다(전체 {n}건)', '필요하면 next_position\
+          \ 을 position 에 넣어 다음 목록을 받는다'], 'document_hint_ignored': ['position 이 있어\
+          \ document_hint 를 쓰지 않았다', '다른 문서를 읽으려면 position 을 비우고 document_hint 만 넣는다'],\
+          \ 'position_version_changed': ['읽기 위치의 판 번호와 현재 판 번호가 달라 같은 chunk_order\
+          \ 에서 읽었다(읽기 위치 {old}, 현재 {new})', '앞 결과와 내용이 이어지는지 확인하고, 어긋나면 position 을\
+          \ 비워 처음부터 읽는다'], 'result_trimmed': ['결과 길이 상한 8,000자에 맞춰 뒤쪽 항목을 빼거나 섹션을\
+          \ 더 짧게 잘랐다(줄인 항목 {n}건)', 'next_position 을 position 에 넣어 이어 읽는다'], 'search_failed':\
+          \ ['ES 조회가 실패했다(HTTP {code})', '한 번만 다시 호출하고, 또 실패하면 사용자에게 알린다'], 'es_base_url_missing':\
+          \ ['환경변수 ES_BASE_URL 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는\
+          \ 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다'], 'es_index_missing': ['환경변수 ES_INDEX\
+          \ 가 비었거나 CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시\
+          \ 호출하지 말고 사용자에게 알린다'], 'es_auth_header_missing': ['환경변수 ES_AUTH_HEADER 가\
+          \ CHANGE-ME 로 남아 있어 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고\
+          \ 사용자에게 알린다'], 'tenant_id_missing': ['환경변수 TENANT_ID 가 CHANGE-ME 로 남아 있어\
+          \ 조회하지 않았다', '이것은 색인에 자료가 없는 것이 아니라 설정 오류다. 다시 호출하지 말고 사용자에게 알린다']}\n\n\n\
+          def _to_int(value):\n    try:\n        return int(value)\n    except Exception:\n\
+          \        return 0\n\n\ndef _parse_json(raw):\n    import json\n    if isinstance(raw,\
+          \ (dict, list)):\n        return raw\n    if not raw:\n        return None\n\
+          \    try:\n        return json.loads(raw)\n    except Exception:\n     \
+          \   return None\n\n\ndef _http_failed(status_code, data):\n    code = _to_int(status_code)\n\
+          \    return code == 0 or code >= 400 or not isinstance(data, dict)\n\n\n\
+          def _hits_of(data):\n    if not isinstance(data, dict):\n        return\
+          \ []\n    outer = data.get(\"hits\")\n    inner = outer.get(\"hits\") if\
+          \ isinstance(outer, dict) else None\n    return inner if isinstance(inner,\
+          \ list) else []\n\n\ndef _total_of(data):\n    if not isinstance(data, dict):\n\
+          \        return 0\n    outer = data.get(\"hits\")\n    total = outer.get(\"\
+          total\") if isinstance(outer, dict) else None\n    if isinstance(total,\
+          \ dict):\n        return _to_int(total.get(\"value\"))\n    return _to_int(total)\n\
+          \n\ndef _wtext(code, **values):\n    pair = WARN.get(code) or [\"\", \"\"\
+          ]\n    fact = pair[0]\n    for key, value in values.items():\n        fact\
+          \ = fact.replace(\"{\" + key + \"}\", str(value))\n    text = code + \"\
+          : \" + fact\n    if pair[1]:\n        text = text + \". \" + pair[1]\n \
+          \   return text\n\n\ndef _size(payload):\n    import json\n    return len(json.dumps(payload,\
+          \ ensure_ascii=False))\n\ndef _snap(content, start, limit, width):\n   \
+          \ size = len(content)\n    if limit >= size:\n        return size\n    if\
+          \ limit <= start:\n        return min(size, start + 1)\n    low = max(start\
+          \ + 1, limit - width)\n    index = limit\n    while index > low:\n     \
+          \   char = content[index - 1]\n        after = content[index] if index <\
+          \ size else \"\"\n        if char == \"\\n\" or char in \"?!。\" or (char\
+          \ == \".\" and (after == \"\" or after.isspace())):\n            return\
+          \ index\n        index -= 1\n    return limit\n\n\ndef _section(row, start,\
+          \ end):\n    content = row[\"content\"]\n    return {\"chunk_id\": row[\"\
+          chunk_id\"], \"chunk_order\": row[\"chunk_order\"],\n            \"page_start\"\
+          : row[\"page_start\"], \"page_end\": row[\"page_end\"],\n            \"\
+          text\": content[start:end], \"text_offset\": start, \"section_chars\": len(content),\n\
+          \            \"truncated\": start > 0 or end < len(content)}\n\n\ndef main(read_body,\
+          \ read_status, outcome, document, documents, document_total, list_next,\n\
+          \         root_from, start_order, start_offset, pick_warning, input_warning):\n\
+          \    READ_SCAN = 8\n    BUDGET = 5500\n    SNAP = 200\n    TARGET = 7800\n\
+          \n    payload = {\"status\": \"\", \"mode\": \"\", \"documents\": [], \"\
+          document_total\": 0, \"document\": {},\n               \"sections\": [],\
+          \ \"section_total\": 0, \"sections_remaining\": 0,\n               \"next_position\"\
+          : \"\", \"prev_position\": \"\", \"warning\": \"\"}\n    info = [text for\
+          \ text in [str(input_warning or \"\").strip()] if text]\n    carried = str(pick_warning\
+          \ or \"\").strip()\n    kind = str(outcome or \"\")\n\n    if kind in (\"\
+          search_failed\", \"no_targets\"):\n        payload[\"status\"] = \"error\"\
+          \ if kind == \"search_failed\" else \"no_targets\"\n        payload[\"warning\"\
+          ] = \"; \".join([carried] + info)\n        return {\"payload\": payload}\n\
+          \n    if kind == \"ambiguous\":\n        payload[\"status\"] = \"ambiguous\"\
+          \n        payload[\"mode\"] = \"candidates\"\n        payload[\"documents\"\
+          ] = list(documents) if isinstance(documents, list) else []\n        payload[\"\
+          document_total\"] = _to_int(document_total)\n        payload[\"warning\"\
+          ] = \"; \".join([carried] + info)\n        return {\"payload\": payload}\n\
+          \n    if kind == \"list\":\n        docs = list(documents) if isinstance(documents,\
+          \ list) else []\n        start = _to_int(root_from)\n        total = _to_int(document_total)\n\
+          \        payload[\"mode\"] = \"documents\"\n        payload[\"document_total\"\
+          ] = total\n        if not docs:\n            payload[\"status\"] = \"no_results\"\
+          \n            code = \"position_out_of_range\" if start > 0 else \"no_results\"\
+          \n            payload[\"warning\"] = \"; \".join([_wtext(code)] + info)\n\
+          \            return {\"payload\": payload}\n        payload[\"status\"]\
+          \ = \"success\"\n        payload[\"documents\"] = docs\n        payload[\"\
+          next_position\"] = str(list_next or \"\")\n        head = []\n        if\
+          \ payload[\"next_position\"] or _size(payload) > TARGET:\n            head.append(_wtext(\"\
+          more_documents\", n=total))\n        payload[\"warning\"] = \"; \".join(head\
+          \ + info)\n        trimmed = 0\n        while _size(payload) > TARGET and\
+          \ len(docs) > 1:\n            docs.pop()\n            trimmed += 1\n   \
+          \         payload[\"next_position\"] = \"#docs:\" + str(start + len(docs))\n\
+          \        warnings = head + info\n        if trimmed:\n            warnings.append(_wtext(\"\
+          result_trimmed\", n=trimmed))\n        payload[\"warning\"] = \"; \".join(warnings)\n\
+          \        return {\"payload\": payload}\n\n    doc = document if isinstance(document,\
+          \ dict) else {}\n    payload[\"document\"] = doc\n    payload[\"mode\"]\
+          \ = \"sections\"\n    tail = info + ([carried] if carried else [])\n   \
+          \ data = _parse_json(read_body)\n    if _http_failed(read_status, data):\n\
+          \        payload[\"status\"] = \"error\"\n        payload[\"warning\"] =\
+          \ \"; \".join([_wtext(\"search_failed\", code=_to_int(read_status))] + tail)\n\
+          \        return {\"payload\": payload}\n\n    hits = []\n    for hit in\
+          \ _hits_of(data):\n        if not isinstance(hit, dict) or not isinstance(hit.get(\"\
+          _source\"), dict):\n            continue\n        src = hit[\"_source\"\
+          ]\n        hits.append({\"chunk_id\": str(src.get(\"chunk_id\") or hit.get(\"\
+          _id\") or \"\"),\n                     \"chunk_order\": _to_int(src.get(\"\
+          chunk_order\")),\n                     \"page_start\": _to_int(src.get(\"\
+          page_start\")),\n                     \"page_end\": _to_int(src.get(\"page_end\"\
+          )),\n                     \"content\": str(src.get(\"content\") or \"\"\
+          )})\n    total_from_start = _total_of(data)\n    aggs = data.get(\"aggregations\"\
+          ) if isinstance(data.get(\"aggregations\"), dict) else {}\n    stats = aggs.get(\"\
+          order_stats\") if isinstance(aggs.get(\"order_stats\"), dict) else {}\n\
+          \    section_total = _to_int(stats.get(\"count\"))\n    prev_agg = aggs.get(\"\
+          prev\") if isinstance(aggs.get(\"prev\"), dict) else {}\n    last_agg =\
+          \ prev_agg.get(\"last\") if isinstance(prev_agg.get(\"last\"), dict) else\
+          \ {}\n    prev_id = \"\"\n    for hit in _hits_of(last_agg):\n        if\
+          \ isinstance(hit, dict):\n            src = hit.get(\"_source\") if isinstance(hit.get(\"\
+          _source\"), dict) else {}\n            prev_id = str(src.get(\"chunk_id\"\
+          ) or hit.get(\"_id\") or \"\")\n            break\n    payload[\"section_total\"\
+          ] = section_total\n\n    order_start = _to_int(start_order)\n    offset_start\
+          \ = max(0, _to_int(start_offset))\n    sections = []\n    contents = []\n\
+          \    full = []\n    completed = 0\n    used = 0\n    first_offset = 0\n\
+          \    next_position = \"\"\n    stopped = False\n    for index, row in enumerate(hits[:READ_SCAN]):\n\
+          \        content = row[\"content\"]\n        offset = offset_start if (index\
+          \ == 0 and row[\"chunk_order\"] == order_start) else 0\n        if index\
+          \ == 0:\n            first_offset = offset\n        if offset > 0 and offset\
+          \ >= len(content):\n            completed += 1\n            continue\n \
+          \       piece = len(content) - offset\n        if used + piece <= BUDGET:\n\
+          \            sections.append(_section(row, offset, len(content)))\n    \
+          \        contents.append(content)\n            full.append(True)\n     \
+          \       used += piece\n            completed += 1\n            continue\n\
+          \        if not sections:\n            end = _snap(content, offset, offset\
+          \ + (BUDGET - used), SNAP)\n            sections.append(_section(row, offset,\
+          \ end))\n            contents.append(content)\n            full.append(False)\n\
+          \            next_position = row[\"chunk_id\"] + \"@\" + str(end)\n    \
+          \    else:\n            next_position = row[\"chunk_id\"]\n        stopped\
+          \ = True\n        break\n    if not stopped and len(hits) > READ_SCAN:\n\
+          \        next_position = hits[READ_SCAN][\"chunk_id\"]\n    prev_position\
+          \ = hits[0][\"chunk_id\"] if (hits and first_offset > 0) else prev_id\n\n\
+          \    if not sections:\n        payload[\"status\"] = \"no_results\"\n  \
+          \      code = \"section_layer_missing\" if section_total == 0 else \"position_out_of_range\"\
+          \n        payload[\"prev_position\"] = prev_position\n        payload[\"\
+          warning\"] = \"; \".join([_wtext(code)] + tail)\n        return {\"payload\"\
+          : payload}\n\n    payload[\"status\"] = \"success\"\n    payload[\"sections\"\
+          ] = sections\n    payload[\"next_position\"] = next_position\n    payload[\"\
+          prev_position\"] = prev_position\n    payload[\"sections_remaining\"] =\
+          \ max(0, total_from_start - completed)\n    payload[\"warning\"] = \"; \"\
+          .join(tail)\n    trimmed = 0\n    while _size(payload) > TARGET and len(sections)\
+          \ > 1:\n        removed = sections.pop()\n        contents.pop()\n     \
+          \   if full.pop():\n            completed -= 1\n        trimmed += 1\n \
+          \       payload[\"next_position\"] = removed[\"chunk_id\"]\n    if _size(payload)\
+          \ > TARGET:\n        section = sections[0]\n        content = contents[0]\n\
+          \        start = section[\"text_offset\"]\n        old_end = start + len(section[\"\
+          text\"])\n        limit = max(start + 1, old_end - (_size(payload) - TARGET))\n\
+          \        end = _snap(content, start, limit, SNAP)\n        if end < old_end:\n\
+          \            if full[0]:\n                completed -= 1\n             \
+          \   full[0] = False\n            section[\"text\"] = content[start:end]\n\
+          \            section[\"truncated\"] = True\n            payload[\"next_position\"\
+          ] = section[\"chunk_id\"] + \"@\" + str(end)\n            trimmed += 1\n\
+          \    payload[\"sections_remaining\"] = max(0, total_from_start - completed)\n\
+          \    warnings = list(tail)\n    if trimmed:\n        warnings.append(_wtext(\"\
+          result_trimmed\", n=trimmed))\n    payload[\"warning\"] = \"; \".join(warnings)\n\
+          \    return {\"payload\": payload}\n"
+        code_language: python3
+        desc: 본문 5,500자 안에서 섹션을 채우고 next_position 과 prev_position 을 만든다. 결과 8,000자
+          상한을 지킨다
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 결과 조립
+        type: code
+        variables:
+        - value_selector:
+          - read
+          - body
+          variable: read_body
+        - value_selector:
+          - read
+          - status_code
+          variable: read_status
+        - value_selector:
+          - pick
+          - outcome
+          variable: outcome
+        - value_selector:
+          - pick
+          - document
+          variable: document
+        - value_selector:
+          - pick
+          - documents
+          variable: documents
+        - value_selector:
+          - pick
+          - document_total
+          variable: document_total
+        - value_selector:
+          - pick
+          - list_next
+          variable: list_next
+        - value_selector:
+          - prep
+          - root_from
+          variable: root_from
+        - value_selector:
+          - pick
+          - start_order
+          variable: start_order
+        - value_selector:
+          - pick
+          - start_offset
+          variable: start_offset
+        - value_selector:
+          - pick
+          - pick_warning
+          variable: pick_warning
+        - value_selector:
+          - prep
+          - input_warning
+          variable: input_warning
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: shape
+          position: right
+          type: source
+          width: 8
+          x: 276.99981869498436
+          y: 22.999967714200334
+        target:
+        - height: 8
+          id: target
+          nodeId: shape
+          position: left
+          type: target
+          width: 8
+          x: -4.999952814578063
+          y: 22.999967714200334
+      id: shape
+      initialized: false
+      isParent: false
+      position:
+        x: 454.7219683569083
+        y: 388.9725825461096
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 840
+        y: 140
+        z: 0
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - comparison_operator: empty
+            id: ea1a6b21-8f2c-922a-de3c-aeb853df60f8
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - config_error
+          - comparison_operator: empty
+            id: c870866f-b23e-f485-793e-d0ee8a7654eb
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - arg_error
+          logical_operator: and
+        desc: config_error 와 arg_error 가 모두 비었을 때만 조회 갈래(ok)로 보낸다. 아니면 false 갈래로 외부
+          호출 없이 끝낸다
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 사전 점검
+        type: if-else
+      dimensions:
+        height: 204
+        width: 306
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: ok
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 302.62476291994335
+          y: 57.999996685688075
+        - height: 8
+          id: 'false'
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 302.62476291994335
+          y: 177.9998907196796
+        target:
+        - height: 8
+          id: target
+          nodeId: gate
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 23.000019038406233
+      id: gate
+      initialized: false
+      isParent: false
+      position:
+        x: 840
+        y: 140
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1309.443936713817
+        y: 473.9725825461096
+        z: 0
+      data:
+        code: "\ndef main(config_error, arg_error):\n    config_text = str(config_error\
+          \ or \"\").strip()\n    arg_text = str(arg_error or \"\").strip()\n    if\
+          \ config_text:\n        return {\"payload\": {\"status\": \"error\", \"\
+          warning\": config_text}}\n    return {\"payload\": {\"status\": \"invalid_arguments\"\
+          , \"warning\": arg_text}}\n"
+        code_language: python3
+        desc: 외부 호출 없이 응답을 만든다. 설정 오류면 status error, 인자 오류면 invalid_arguments
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 점검 실패 응답
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - config_error
+          variable: config_error
+        - value_selector:
+          - prep
+          - arg_error
+          variable: arg_error
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: precheck_fail
+          position: right
+          type: source
+          width: 8
+          x: 276.9997160465726
+          y: 23.000019038406233
+        target:
+        - height: 8
+          id: target
+          nodeId: precheck_fail
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 23.000019038406233
+      id: precheck_fail
+      initialized: false
+      isParent: false
+      position:
+        x: 1309.443936713817
+        y: 473.9725825461096
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 74.72196835690829
+        y: 388.9725825461096
+        z: 0
+      data:
+        desc: 두 갈래 가운데 실행된 쪽의 payload 를 고른다
+        output_type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 합류
+        type: variable-aggregator
+        variables:
+        - - shape
+          - payload
+        - - precheck_fail
+          - payload
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: merge
+          position: right
+          type: source
+          width: 8
+          x: 276.9997930328814
+          y: 22.999967714200334
+        target:
+        - height: 8
+          id: target
+          nodeId: merge
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 22.999967714200334
+      id: merge
+      initialized: false
+      isParent: false
+      position:
+        x: 74.72196835690829
+        y: 388.9725825461096
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 72.08295253536255
+        y: 562.705446637428
+        z: 0
+      data:
+        code: "\ndef main(payload):\n    FIELDS = [['status', 'string'], ['mode',\
+          \ 'string'], ['documents', 'array[object]'], ['document_total', 'number'],\
+          \ ['document', 'object'], ['sections', 'array[object]'], ['section_total',\
+          \ 'number'], ['sections_remaining', 'number'], ['next_position', 'string'],\
+          \ ['prev_position', 'string'], ['warning', 'string']]\n    data = payload\
+          \ if isinstance(payload, dict) else {}\n    out = {}\n    for name, kind\
+          \ in FIELDS:\n        value = data.get(name)\n        if kind == \"string\"\
+          :\n            out[name] = str(value) if value is not None else \"\"\n \
+          \       elif kind == \"number\":\n            try:\n                out[name]\
+          \ = int(value)\n            except Exception:\n                out[name]\
+          \ = 0\n        elif kind == \"object\":\n            out[name] = value if\
+          \ isinstance(value, dict) else {}\n        else:\n            out[name]\
+          \ = value if isinstance(value, list) else []\n    return out\n"
+        code_language: python3
+        desc: payload 를 end 출력 11개로 펼치고 형을 맞춘다. end 는 이 노드만 참조한다
+        outputs:
+          document:
+            children: null
+            type: object
+          document_total:
+            children: null
+            type: number
+          documents:
+            children: null
+            type: array[object]
+          mode:
+            children: null
+            type: string
+          next_position:
+            children: null
+            type: string
+          prev_position:
+            children: null
+            type: string
+          section_total:
+            children: null
+            type: number
+          sections:
+            children: null
+            type: array[object]
+          sections_remaining:
+            children: null
+            type: number
+          status:
+            children: null
+            type: string
+          warning:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 응답 펼치기
+        type: code
+        variables:
+        - value_selector:
+          - merge
+          - output
+          variable: payload
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: unpack
+          position: right
+          type: source
+          width: 8
+          x: 276.9997673707785
+          y: 23.000019038406233
+        target:
+        - height: 8
+          id: target
+          nodeId: unpack
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 23.000019038406233
+      id: unpack
+      initialized: false
+      isParent: false
+      position:
+        x: 72.08295253536255
+        y: 562.705446637428
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 452.08295253536255
+        y: 562.705446637428
+        z: 0
+      data:
+        desc: 도구 응답 11필드. 이름과 타입이 게시 규격이다
+        display_variables:
+        - status
+        - mode
+        - documents
+        - document_total
+        - document
+        - sections
+        - section_total
+        - sections_remaining
+        - next_position
+        - prev_position
+        - warning
+        outputs:
+        - value_selector:
+          - unpack
+          - status
+          variable: status
+        - value_selector:
+          - unpack
+          - mode
+          variable: mode
+        - value_selector:
+          - unpack
+          - documents
+          variable: documents
+        - value_selector:
+          - unpack
+          - document_total
+          variable: document_total
+        - value_selector:
+          - unpack
+          - document
+          variable: document
+        - value_selector:
+          - unpack
+          - sections
+          variable: sections
+        - value_selector:
+          - unpack
+          - section_total
+          variable: section_total
+        - value_selector:
+          - unpack
+          - sections_remaining
+          variable: sections_remaining
+        - value_selector:
+          - unpack
+          - next_position
+          variable: next_position
+        - value_selector:
+          - unpack
+          - prev_position
+          variable: prev_position
+        - value_selector:
+          - unpack
+          - warning
+          variable: warning
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 종료
+        type: end
+      dimensions:
+        height: 375
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target:
+        - height: 8
+          id: target
+          nodeId: done
+          position: left
+          type: target
+          width: 8
+          x: -5.0000041387839635
+          y: 23.000019038406233
+      id: done
+      initialized: false
+      isParent: false
+      position:
+        x: 452.08295253536255
+        y: 562.705446637428
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 80
+        y: -486
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 586
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 문서 조회 (abox_read_documents)
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 문서 목록을 보이거나, 문서 하나의 parent 섹션을 chunk_order 순서로 읽어 돌려주는 MCP 도구다.
+                  앱 하나가 도구 하나이며 Single Agent 가 MCP 로 호출한다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 입력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' document_hint(문서명 단서 또는 document_id, 선택), position(읽기 위치,
+                  선택)'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 출력
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' status, mode, documents, document_total, document, sections,
+                  section_total, sections_remaining, next_position, prev_position,
+                  warning'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 전제
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' mode 는 workflow 다. 대상은 표준 계층 색인 v2.0 KB 인덱스 1개이며 ES _search
+                  를 root 층 1회, parent 층 1회 부른다. LLM 노드는 없다. 1회 결과는 8,000자 이내다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: blue
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 586
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 586
+      id: note_t1_overview
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: -486
+      positionAbsolute:
+        x: 80
+        y: -486
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#eff8ff'
+        border: '1px solid #84caff'
+        height: 586px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 2153.9289996084694
+        y: 288.4731107508205
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 649
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 방식 판정과 순차 읽기
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 'prep 이 인자 조합으로 방식을 정한다. 두 인자가 비었거나 position 이 #docs:n 이면 목록,
+                  position 이 root 또는 parent chunk_id 면 위치, document_hint 만 있으면 단서
+                  방식이다. child chunk_id 는 position_invalid 로 돌려준다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: root 는 named query 3개(id, strict, loose)와 minimum_should_match
+                  0 으로 확정 후보와 지금 조회 가능한 문서를 한 번에 받는다. pick 은 id 일치, strict 1건, 제목
+                  완전 일치 1건 순으로 확정하고, strict 가 여러 건이면 ambiguous, 0건이면 no_targets 다.
+                  점수 비율로 확정하지 않는다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: read 는 post_filter 로 시작 위치 이후 parent 9건을 받고, 같은 요청의 집계로 앞 섹션(prev)과
+                  전체 섹션 수(order_stats)를 얻는다. shape 가 본문 5,500자 안에서 섹션을 채우고, 첫 섹션 하나가
+                  상한을 넘으면 문장 경계에서 잘라 chunk_id@offset 을 next_position 으로 준다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: green
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 649
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 649
+      id: note_t1_flow
+      initialized: false
+      isParent: false
+      position:
+        x: 2153.9289996084694
+        y: 288.4731107508205
+      positionAbsolute:
+        x: 1320
+        y: 270
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#ecfdf3'
+        border: '1px solid #75e0a7'
+        height: 649px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1673.9289996084694
+        y: 162.47311075082052
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 775
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 함정 주의
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 외부 호출 실패는 error 다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' root 와 read 에 default-value(body 빈 값, status_code 0)를 걸었다.
+                  pick 과 shape 가 status_code 0 또는 400 이상을 search_failed 로 판정해 자료 없음(no_results)과
+                  구분한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 확정하지 못해도 read 는 실행된다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 이때 read_query 는 match_none 이라 0건이 정상 경로다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 본문은 원문의 연속 구간만 싣는다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 생략 부호를 넣지 않아야 abox_validate_instances 가 인용문을 원문에서 찾는다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: JSON 본문의 따옴표 변수 치환에 기댄다.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' query, sort, from, post_filter 를 객체, 배열, 숫자 변수로 넣는다. 배포 이미지가
+                  형에 맞춰 치환하지 않으면 요청이 깨진다(환경 확인 E9).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: code 노드 출력 상한.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 배포 이미지의 CODE_MAX_* 가 표준 Dify 기본값이면 payload 중첩이 실행에서 실패할 수
+                  있다(환경 확인 E8).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: parent 층이 없는 문서.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' child 대체 읽기를 두지 않고 no_results 와 section_layer_missing 만 낸다(설계
+                  U10).'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: red
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 775
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 775
+      id: note_t1_traps
+      initialized: false
+      isParent: false
+      position:
+        x: 1673.9289996084694
+        y: 162.47311075082052
+      positionAbsolute:
+        x: 840
+        y: 144
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fdf2fa'
+        border: '1px solid #faa7e0'
+        height: 775px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 1673.9289996084694
+        y: -590.5268892491795
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 733
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 사전 점검 gate
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: prep 이 환경변수와 인자를 점검해 config_error 와 arg_error 를 낸다. gate 는 둘
+                  다 빈 값일 때만(and) ok 갈래의 조회로 보내고, 나머지는 false 갈래의 precheck_fail 로 보낸다.
+                  precheck_fail 은 외부 호출 없이 끝나며 config_error 가 있으면 status error, 없으면
+                  invalid_arguments 다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 인자 점검.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' position 이 #docs:n, root chunk_id, parent chunk_id 가운데 하나가
+                  아니면 position_invalid 로 끝낸다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 분기 노드 규칙.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' gate 에는 default-value 를 걸 수 없다. false 엣지를 빠뜨리면 점검 실패 때 흐름이
+                  조용히 멈춘다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 한 end 로 모으는 방법.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 두 갈래가 같은 이름의 object(payload)를 내고 merge(variable-aggregator)가
+                  실행된 쪽을 고른다. unpack 이 end 출력으로 펼치므로 end 는 하나이고 게시 규격이 두 갈래에서 같다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: 점검 한계.
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' 빈 값과 CHANGE-ME 는 잡지만 틀린 값(오타)은 잡지 못한다.'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: purple
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 733
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 733
+      id: note_t1_gate
+      initialized: false
+      isParent: false
+      position:
+        x: 1673.9289996084694
+        y: -590.5268892491795
+      positionAbsolute:
+        x: 840
+        y: -609
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#f3e8ff'
+        border: '1px solid #e9d5ff'
+        height: 733px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    - computedPosition:
+        x: 2153.9289996084694
+        y: -422.5268892491795
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 691
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: false
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: CHANGE-ME 교체 안내
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              tag: h1
+              type: heading
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 가져오기 뒤 앱 설정의 환경변수 4개를 실제 값으로 바꾼다. 초기값은 모두 CHANGE-ME 이며, 그대로
+                  두면 조회 없이 status error 로 끝난다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_BASE_URL
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) Elasticsearch 주소. 끝에 슬래시를 붙이지 않는다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_INDEX
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) 표준 계층 색인 v2.0 KB 인덱스명. 단일 인덱스 또는 단일 인덱스를 가리키는 alias'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: ES_AUTH_HEADER
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (secret) Authorization 헤더 값(ApiKey ... 또는 Basic ...). 인증 없는
+                  ES 면 빈 문자열. secret 이라 DSL 을 내보내면 값이 비워진다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 1
+                mode: normal
+                style: ''
+                text: TENANT_ID
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ' (string) 다중 테넌트 색인의 tenant_id 값. 빈 문자열이면 tenant 조건을 걸지 않는다'
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: ES_AUTH_HEADER 와 TENANT_ID 는 빈 문자열을 허용한다. 인증 없는 ES 이거나 단일 테넌트
+                  색인이면 CHANGE-ME 를 지우고 빈 값으로 둔다. 같은 값을 다른 abox 앱에도 따로 넣는다.
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            type: root
+            version: 1
+        theme: yellow
+        title: ''
+        type: ''
+        width: 360
+      dimensions:
+        height: 691
+        width: 360
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      height: 691
+      id: note_t1_changeme
+      initialized: false
+      isParent: false
+      position:
+        x: 2153.9289996084694
+        y: -422.5268892491795
+      positionAbsolute:
+        x: 1320
+        y: -441
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#fefbe8'
+        border: '1px solid #fde272'
+        height: 691px
+        width: 360px
+      targetPosition: left
+      type: custom-note
+      width: 360
+      zIndex: -1
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0
+  rag_pipeline_variables: []
