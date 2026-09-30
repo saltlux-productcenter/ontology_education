@@ -1,0 +1,1408 @@
+app:
+  description: Knowledge Studio 로그인 후 저장소 생성(IF-SOR-037) 및 열기·닫기(IF-SOR-043). CREATE는
+    생성 결과를, OPEN/CLOSE는 비동기 작업 제출 결과와 job_id를 반환한다. 로그인 정보는 secret 환경 변수에 설정한다.
+  icon: ri-database-2-line
+  icon_background: '#14b8a6'
+  mode: workflow
+  name: knowledge_studio_repository_manage
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: Knowledge Studio API 주소. 끝에 /를 붙이지 않는다.
+    id: 06f39045-391b-44c2-af96-73015ad13914
+    name: KS_BASE_URL
+    selector:
+    - env
+    - KS_BASE_URL
+    value: http://211.109.9.74:18080
+    value_type: string
+  - description: Knowledge Studio 로그인 아이디. DSL 파일에 값을 직접 적지 않는다.
+    id: 9e7abbee-a421-4b88-84cb-57eaf3629229
+    name: KS_USERNAME
+    selector:
+    - env
+    - KS_USERNAME
+    value: ''
+    value_type: secret
+  - description: Knowledge Studio 로그인 비밀번호. DSL 파일에 값을 직접 적지 않는다.
+    id: 5a7400f6-2b34-48a8-a278-91a64c13651c
+    name: KS_PASSWORD
+    selector:
+    - env
+    - KS_PASSWORD
+    value: ''
+    value_type: secret
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        sourceType: start
+        targetType: code
+      id: start-source-prep-target
+      label: ''
+      source: start
+      sourceHandle: source
+      target: prep
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: prep-source-gate-target
+      label: ''
+      source: prep
+      sourceHandle: source
+      target: gate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: gate-ok-login-target
+      label: ''
+      source: gate
+      sourceHandle: ok
+      target: login
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: gate-false-precheck-target
+      label: ''
+      source: gate
+      sourceHandle: 'false'
+      target: precheck
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: login-source-auth_result-target
+      label: ''
+      source: login
+      sourceHandle: source
+      target: auth_result
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: if-else
+      id: auth_result-source-auth_gate-target
+      label: ''
+      source: auth_result
+      sourceHandle: source
+      target: auth_gate
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: http-request
+      id: auth_gate-ok-api-target
+      label: ''
+      source: auth_gate
+      sourceHandle: ok
+      target: api
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: if-else
+        targetType: code
+      id: auth_gate-false-auth_fail-target
+      label: ''
+      source: auth_gate
+      sourceHandle: 'false'
+      target: auth_fail
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: http-request
+        targetType: code
+      id: api-source-result-target
+      label: ''
+      source: api
+      sourceHandle: source
+      target: result
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: result-source-merge-target
+      label: ''
+      source: result
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: precheck-source-merge-target
+      label: ''
+      source: precheck
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: variable-aggregator
+      id: auth_fail-source-merge-target
+      label: ''
+      source: auth_fail
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: variable-aggregator
+        targetType: code
+      id: merge-source-unpack-target
+      label: ''
+      source: merge
+      sourceHandle: source
+      target: unpack
+      targetHandle: target
+      type: custom
+    - data:
+        sourceType: code
+        targetType: end
+      id: unpack-source-done-target
+      label: ''
+      source: unpack
+      sourceHandle: source
+      target: done
+      targetHandle: target
+      type: custom
+    nodes:
+    - computedPosition:
+        x: 80
+        y: 282
+        z: 0
+      data:
+        desc: CREATE, OPEN, CLOSE 중 하나와 저장소 ID를 입력한다. label은 CREATE에서만 사용한다.
+        display_variables:
+        - operation
+        - repository_id
+        - label
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 요청 입력
+        type: start
+        variables:
+        - default: ''
+          description: CREATE | OPEN | CLOSE
+          label: 작업
+          required: true
+          type: text-input
+          variable: operation
+        - default: ''
+          description: 영문자·숫자·마침표·밑줄·하이픈만 허용
+          label: 저장소 ID
+          required: true
+          type: text-input
+          variable: repository_id
+        - default: ''
+          description: CREATE에서 사용할 표시 이름. 비우면 저장소 ID 사용
+          label: 저장소 이름
+          required: false
+          type: text-input
+          variable: label
+      dimensions:
+        height: 204
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: start
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target: null
+      id: start
+      initialized: false
+      isParent: false
+      position:
+        x: 80
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 380
+        y: 282
+        z: 0
+      data:
+        code: "import json\nimport re\n\ndef main(operation, repository_id, label,\
+          \ ks_base_url, ks_username, ks_password):\n    op = str(operation or '').strip().upper()\n\
+          \    rid = str(repository_id or '').strip()\n    name = str(label or '').strip()\n\
+          \    base = str(ks_base_url or '').strip().rstrip('/')\n    username = str(ks_username\
+          \ or '').strip()\n    password = str(ks_password or '')\n    error = ''\n\
+          \    if op not in ('CREATE', 'OPEN', 'CLOSE'):\n        error = 'operation은\
+          \ CREATE, OPEN, CLOSE 중 하나여야 합니다.'\n    elif not re.fullmatch(r'[A-Za-z0-9._-]+',\
+          \ rid):\n        error = 'repository_id는 영문자·숫자·마침표·밑줄·하이픈만 사용할 수 있습니다.'\n\
+          \    elif not re.fullmatch(r'https?://[^/\\s]+', base):\n        error =\
+          \ 'KS_BASE_URL을 http(s)://호스트[:포트] 형식으로 설정하세요.'\n    elif not username or\
+          \ not password:\n        error = 'KS_USERNAME과 KS_PASSWORD 환경 변수에 로그인 정보를\
+          \ 설정하세요.'\n    if op == 'CREATE':\n        body = {\n            'id': rid,\n\
+          \            'label': name or rid,\n            'storageType': 'general',\n\
+          \            'inferenceProfile': 'NONE',\n            'reasoningMode': 'HYBRID',\n\
+          \            'swrlProfile': 'NONE',\n            'provenanceEnabled': False,\n\
+          \            'anonymousSparqlEnabled': False,\n            'anonymousCypherEnabled':\
+          \ False,\n        }\n        url = base + '/api/v1/repositories'\n    else:\n\
+          \        body = {'action': op}\n        url = base + '/api/v1/repositories/'\
+          \ + rid + '/status'\n    return {\n        'operation': op,\n        'repository_id':\
+          \ rid,\n        'error': error,\n        'url': url,\n        'request_body':\
+          \ json.dumps(body, ensure_ascii=False),\n        'login_url': base + '/api/v1/auth/login',\n\
+          \        'login_body': json.dumps({'username': username, 'password': password},\
+          \ ensure_ascii=False),\n    }"
+        code_language: python3
+        desc: 인자를 검사하고 로그인 및 저장소 API 요청을 구성한다. 로그인 본문은 내부 노드에만 전달한다.
+        outputs:
+          error:
+            children: null
+            type: string
+          login_body:
+            children: null
+            type: string
+          login_url:
+            children: null
+            type: string
+          operation:
+            children: null
+            type: string
+          repository_id:
+            children: null
+            type: string
+          request_body:
+            children: null
+            type: string
+          url:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 요청 검증 및 구성
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - operation
+          variable: operation
+        - value_selector:
+          - start
+          - repository_id
+          variable: repository_id
+        - value_selector:
+          - start
+          - label
+          variable: label
+        - value_selector:
+          - env
+          - KS_BASE_URL
+          variable: ks_base_url
+        - value_selector:
+          - env
+          - KS_USERNAME
+          variable: ks_username
+        - value_selector:
+          - env
+          - KS_PASSWORD
+          variable: ks_password
+      dimensions:
+        height: 56
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: prep
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target:
+        - height: 8
+          id: target
+          nodeId: prep
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: prep
+      initialized: false
+      isParent: false
+      position:
+        x: 380
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 680
+        y: 282
+        z: 0
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - comparison_operator: empty
+            id: c687b055-a0a9-428e-b257-cb8f834c993b
+            value: ''
+            varType: string
+            variable_selector:
+            - prep
+            - error
+          logical_operator: and
+        desc: 검증 실패 시 외부 API를 호출하지 않는다.
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 입력 유효성
+        type: if-else
+      dimensions:
+        height: 152
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: ok
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 59
+        - height: 8
+          id: 'false'
+          nodeId: gate
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 125
+        target:
+        - height: 8
+          id: target
+          nodeId: gate
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: gate
+      initialized: false
+      isParent: false
+      position:
+        x: 680
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 980
+        y: 282
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{{#prep.login_body#}}'
+          type: raw-text
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: IF-SOR-014 로그인 API에서 이번 실행에 사용할 토큰을 발급받는다.
+        error_strategy: default-value
+        headers: Content-Type:application/json;charset=UTF-8
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: Knowledge Studio 로그인
+        type: http-request
+        url: '{{#prep.login_url#}}'
+        variables: []
+      dimensions:
+        height: 142
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: login
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target:
+        - height: 8
+          id: target
+          nodeId: login
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: login
+      initialized: false
+      isParent: false
+      position:
+        x: 980
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1280
+        y: 282
+        z: 0
+      data:
+        code: "import json\n\ndef main(body, status_code):\n    try:\n        code\
+          \ = int(status_code or 0)\n    except (TypeError, ValueError):\n       \
+          \ code = 0\n    try:\n        parsed = json.loads(body) if body else {}\n\
+          \    except (TypeError, ValueError):\n        parsed = {}\n    if not isinstance(parsed,\
+          \ dict):\n        parsed = {}\n    token = str(parsed.get('token') or '')\
+          \ if 200 <= code < 300 else ''\n    if token:\n        error = ''\n    elif\
+          \ code == 0:\n        error = '로그인 API 접속 또는 응답 오류입니다.'\n    elif not 200\
+          \ <= code < 300:\n        error = 'Knowledge Studio 로그인 실패 (HTTP ' + str(code)\
+          \ + ').'\n    else:\n        error = '로그인 응답에 token 필드가 없습니다.'\n    return\
+          \ {'token': token, 'error': error, 'http_status': code}"
+        code_language: python3
+        desc: 로그인 성공과 token 존재를 확인한다. 오류 출력에 자격 증명이나 응답 본문을 포함하지 않는다.
+        outputs:
+          error:
+            children: null
+            type: string
+          http_status:
+            children: null
+            type: number
+          token:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 로그인 응답 확인
+        type: code
+        variables:
+        - value_selector:
+          - login
+          - body
+          variable: body
+        - value_selector:
+          - login
+          - status_code
+          variable: status_code
+      dimensions:
+        height: 56
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: auth_result
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target:
+        - height: 8
+          id: target
+          nodeId: auth_result
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: auth_result
+      initialized: false
+      isParent: false
+      position:
+        x: 1280
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1580
+        y: 282
+        z: 0
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - comparison_operator: empty
+            id: 81376310-bb81-452f-9b57-f741317034a0
+            value: ''
+            varType: string
+            variable_selector:
+            - auth_result
+            - error
+          logical_operator: and
+        desc: 토큰 발급에 실패하면 저장소 API를 호출하지 않는다.
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 로그인 성공 여부
+        type: if-else
+      dimensions:
+        height: 152
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: ok
+          nodeId: auth_gate
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 59
+        - height: 8
+          id: 'false'
+          nodeId: auth_gate
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 125
+        target:
+        - height: 8
+          id: target
+          nodeId: auth_gate
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: auth_gate
+      initialized: false
+      isParent: false
+      position:
+        x: 1580
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 1880
+        y: 282
+        z: 0
+      data:
+        code: "def main(operation, repository_id, error, http_status):\n    return\
+          \ {'payload': {\n        'status': 'authentication_error',\n        'operation':\
+          \ operation,\n        'repository_id': repository_id,\n        'http_status':\
+          \ int(http_status or 0),\n        'job_id': '',\n        'job_status': '',\n\
+          \        'message': error,\n        'response': {},\n    }}"
+        code_language: python3
+        desc: 인증 실패 정보를 반환하되 자격 증명과 토큰은 반환하지 않는다.
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 로그인 실패
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - operation
+          variable: operation
+        - value_selector:
+          - prep
+          - repository_id
+          variable: repository_id
+        - value_selector:
+          - auth_result
+          - error
+          variable: error
+        - value_selector:
+          - auth_result
+          - http_status
+          variable: http_status
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: auth_fail
+          position: right
+          type: source
+          width: 8
+          x: 277
+          y: 23
+        target:
+        - height: 8
+          id: target
+          nodeId: auth_fail
+          position: left
+          type: target
+          width: 8
+          x: -5
+          y: 23
+      id: auth_fail
+      initialized: false
+      isParent: false
+      position:
+        x: 1880
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 2180
+        y: 282
+        z: 0
+      data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1
+            key: ''
+            type: text
+            value: '{{#prep.request_body#}}'
+          type: raw-text
+        default_value:
+        - key: body
+          type: string
+          value: ''
+        - key: status_code
+          type: number
+          value: 0
+        desc: CREATE는 IF-SOR-037, OPEN/CLOSE는 IF-SOR-043 호출. 인증 토큰을 헤더로만 전달한다.
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8
+
+          Authorization:Bearer {{#auth_result.token#}}'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        ssl_verify: true
+        title: Knowledge Studio API 호출
+        type: http-request
+        url: '{{#prep.url#}}'
+        variables: []
+      dimensions:
+        height: 142
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: api
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target:
+        - height: 8
+          id: target
+          nodeId: api
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: api
+      initialized: false
+      isParent: false
+      position:
+        x: 2180
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 2480
+        y: 282
+        z: 0
+      data:
+        code: "import json\n\ndef main(operation, repository_id, body, status_code):\n\
+          \    try:\n        code = int(status_code or 0)\n    except (TypeError,\
+          \ ValueError):\n        code = 0\n    try:\n        parsed = json.loads(body)\
+          \ if body else {}\n    except (TypeError, ValueError):\n        parsed =\
+          \ {'raw': str(body or '')[:2000]}\n    if not isinstance(parsed, dict):\n\
+          \        parsed = {'data': parsed}\n    success = 200 <= code < 300\n  \
+          \  if operation == 'CREATE':\n        state = 'success' if success else\
+          \ 'error'\n        job_id = ''\n        job_status = ''\n        message\
+          \ = '저장소 생성 요청 성공' if success else '저장소 생성 요청 실패'\n    else:\n        job\
+          \ = parsed.get('job', {})\n        if not isinstance(job, dict):\n     \
+          \       job = {}\n        job_id = str(parsed.get('id') or parsed.get('jobId')\
+          \ or job.get('id') or '') if success else ''\n        job_status = str(parsed.get('status')\
+          \ or job.get('status') or '') if success else ''\n        state = 'submitted'\
+          \ if success else 'error'\n        message = ('열기·닫기 작업이 제출되었습니다. 완료 여부는\
+          \ 작업 ID로 별도 확인하세요.'\n                   if success else '저장소 열기·닫기 요청 실패')\n\
+          \    if not success:\n        detail = parsed.get('message') or parsed.get('error')\
+          \ or ''\n        if detail:\n            message += ': ' + str(detail)[:500]\n\
+          \        elif code == 0:\n            message += ': API 접속 또는 응답 오류를 확인하세요.'\n\
+          \    return {'payload': {\n        'status': state,\n        'operation':\
+          \ operation,\n        'repository_id': repository_id,\n        'http_status':\
+          \ code,\n        'job_id': job_id,\n        'job_status': job_status,\n\
+          \        'message': message,\n        'response': parsed,\n    }}"
+        code_language: python3
+        desc: CREATE와 비동기 OPEN/CLOSE의 성공 의미를 구분하여 결과를 정리한다.
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: API 응답 정리
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - operation
+          variable: operation
+        - value_selector:
+          - prep
+          - repository_id
+          variable: repository_id
+        - value_selector:
+          - api
+          - body
+          variable: body
+        - value_selector:
+          - api
+          - status_code
+          variable: status_code
+      dimensions:
+        height: 56
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: result
+          position: right
+          type: source
+          width: 8
+          x: 275.99989496260116
+          y: 23.999977005215904
+        target:
+        - height: 8
+          id: target
+          nodeId: result
+          position: left
+          type: target
+          width: 8
+          x: -4.0003681069785095
+          y: 23.999977005215904
+      id: result
+      initialized: false
+      isParent: false
+      position:
+        x: 2480
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 2780
+        y: 282
+        z: 0
+      data:
+        code: "def main(operation, repository_id, error):\n    return {'payload':\
+          \ {\n        'status': 'invalid_arguments',\n        'operation': operation,\n\
+          \        'repository_id': repository_id,\n        'http_status': 0,\n  \
+          \      'job_id': '',\n        'job_status': '',\n        'message': error,\n\
+          \        'response': {},\n    }}"
+        code_language: python3
+        desc: 설정 또는 인자 오류를 외부 호출 없이 반환한다.
+        outputs:
+          payload:
+            children: null
+            type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 사전 검증 실패
+        type: code
+        variables:
+        - value_selector:
+          - prep
+          - operation
+          variable: operation
+        - value_selector:
+          - prep
+          - repository_id
+          variable: repository_id
+        - value_selector:
+          - prep
+          - error
+          variable: error
+      dimensions:
+        height: 54
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: precheck
+          position: right
+          type: source
+          width: 8
+          x: 277
+          y: 23
+        target:
+        - height: 8
+          id: target
+          nodeId: precheck
+          position: left
+          type: target
+          width: 8
+          x: -5
+          y: 23
+      id: precheck
+      initialized: false
+      isParent: false
+      position:
+        x: 2780
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 3080
+        y: 282
+        z: 0
+      data:
+        desc: 실행된 분기의 결과만 합친다.
+        output_type: object
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 결과 합류
+        type: variable-aggregator
+        variables:
+        - - result
+          - payload
+        - - precheck
+          - payload
+        - - auth_fail
+          - payload
+      dimensions:
+        height: 56
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: merge
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target:
+        - height: 8
+          id: target
+          nodeId: merge
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: merge
+      initialized: false
+      isParent: false
+      position:
+        x: 3080
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 3380
+        y: 282
+        z: 0
+      data:
+        code: "def main(payload):\n    p = payload if isinstance(payload, dict) else\
+          \ {}\n    return {\n        'status': str(p.get('status', 'error')),\n \
+          \       'operation': str(p.get('operation', '')),\n        'repository_id':\
+          \ str(p.get('repository_id', '')),\n        'http_status': int(p.get('http_status',\
+          \ 0) or 0),\n        'job_id': str(p.get('job_id', '')),\n        'job_status':\
+          \ str(p.get('job_status', '')),\n        'message': str(p.get('message',\
+          \ '')),\n        'response': p.get('response', {}),\n    }"
+        code_language: python3
+        desc: MCP 사용 시 소비하기 쉽도록 출력 필드를 분리한다.
+        outputs:
+          http_status:
+            children: null
+            type: number
+          job_id:
+            children: null
+            type: string
+          job_status:
+            children: null
+            type: string
+          message:
+            children: null
+            type: string
+          operation:
+            children: null
+            type: string
+          repository_id:
+            children: null
+            type: string
+          response:
+            children: null
+            type: object
+          status:
+            children: null
+            type: string
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 출력 필드 구성
+        type: code
+        variables:
+        - value_selector:
+          - merge
+          - output
+          variable: payload
+      dimensions:
+        height: 56
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source:
+        - height: 8
+          id: source
+          nodeId: unpack
+          position: right
+          type: source
+          width: 8
+          x: 276
+          y: 24
+        target:
+        - height: 8
+          id: target
+          nodeId: unpack
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: unpack
+      initialized: false
+      isParent: false
+      position:
+        x: 3380
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 3680
+        y: 282
+        z: 0
+      data:
+        desc: OPEN/CLOSE의 submitted는 작업 접수이며 완료를 뜻하지 않는다.
+        display_variables:
+        - status
+        - operation
+        - repository_id
+        - http_status
+        - job_id
+        - job_status
+        - message
+        - response
+        outputs:
+        - value_selector:
+          - unpack
+          - status
+          variable: status
+        - value_selector:
+          - unpack
+          - operation
+          variable: operation
+        - value_selector:
+          - unpack
+          - repository_id
+          variable: repository_id
+        - value_selector:
+          - unpack
+          - http_status
+          variable: http_status
+        - value_selector:
+          - unpack
+          - job_id
+          variable: job_id
+        - value_selector:
+          - unpack
+          - job_status
+          variable: job_status
+        - value_selector:
+          - unpack
+          - message
+          variable: message
+        - value_selector:
+          - unpack
+          - response
+          variable: response
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        title: 결과 반환
+        type: end
+      dimensions:
+        height: 299
+        width: 280
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target:
+        - height: 8
+          id: target
+          nodeId: done
+          position: left
+          type: target
+          width: 8
+          x: -4
+          y: 24
+      id: done
+      initialized: false
+      isParent: false
+      position:
+        x: 3680
+        y: 282
+      resizing: false
+      selected: false
+      type: custom
+    - computedPosition:
+        x: 100
+        y: -31
+        z: -1
+      data:
+        author: ''
+        desc: ''
+        height: 88
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 300
+        showAuthor: true
+        text:
+          root:
+            children:
+            - children:
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: operation
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: '실행할 작업. '
+                type: text
+                version: 1
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: CREATE
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: '는 생성, '
+                type: text
+                version: 1
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: OPEN
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: '은 열기, '
+                type: text
+                version: 1
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: CLOSE
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 는 닫기
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: repository_id
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 대상 저장소의 고유 ID. 생성할 때는 새 ID, 열거나 닫을 때는 기존 ID
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children: []
+              direction: null
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: label
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            - children:
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: '저장소에 표시할 이름. '
+                type: text
+                version: 1
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: CREATE
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: '에서만 사용하며, 비우면 '
+                type: text
+                version: 1
+              - detail: 0
+                format: 16
+                mode: normal
+                style: ''
+                text: repository_id
+                type: text
+                version: 1
+              - detail: 0
+                format: 0
+                mode: normal
+                style: ''
+                text: 가 이름으로 쓰입니다
+                type: text
+                version: 1
+              direction: ltr
+              format: ''
+              indent: 0
+              textFormat: 0
+              textStyle: ''
+              type: paragraph
+              version: 1
+            direction: ltr
+            format: ''
+            indent: 0
+            textFormat: 16
+            type: root
+            version: 1
+        theme: blue
+        title: ''
+        type: start
+        width: 240
+      dimensions:
+        height: 273
+        width: 592
+      dragging: false
+      events: {}
+      handleBounds:
+        source: null
+        target: null
+      id: '1790695716472'
+      initialized: false
+      isParent: false
+      position:
+        x: 100
+        y: -31
+      resizing: false
+      selected: false
+      sourcePosition: right
+      style:
+        background-color: '#eff8ff'
+        border: '1px solid #84caff'
+        height: 273px
+        width: 592px
+      targetPosition: left
+      type: custom-note
+      zIndex: -1
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0
+  rag_pipeline_variables: []

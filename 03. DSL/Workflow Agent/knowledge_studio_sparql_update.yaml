@@ -1,0 +1,399 @@
+app:
+  description: 'IF-SOR-081 SPARQL Update 실행 도구. repo와 sparql 원문을 입력받아 Knowledge Studio에 반영한다. 데이터 변경 도구이므로 사용자의 명시적인 변경 요청에만 호출한다. 성공은 HTTP 204이며 변경 건수는 반환하지 않는다.'
+  icon: ri-database-2-line
+  icon_background: '#2563eb'
+  mode: workflow
+  name: knowledge_studio_sparql_update
+  type: agent
+  use_icon_as_answer_icon: false
+dependencies:
+  code_agents: []
+  knowledges: []
+  node_configs: []
+  single_agents: []
+  skills: []
+  workflow_apps: []
+  workflow_mcp_servers: []
+  workflow_tools: []
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 'Knowledge Studio 기준 URL. 끝에 /를 붙이지 않는다.'
+    id: 42ea52e0-abec-493b-a7e1-c5dad741830b
+    name: KS_BASE_URL
+    selector: [env, KS_BASE_URL]
+    value: http://211.109.9.74:18080
+    value_type: string
+  - description: 'Knowledge Studio 로그인 아이디. DSL 파일에 값을 직접 적지 않는다.'
+    id: d4ceb68a-f2f8-490e-92c0-c086873c8f9a
+    name: KS_USERNAME
+    selector: [env, KS_USERNAME]
+    value: ''
+    value_type: secret
+  - description: 'Knowledge Studio 로그인 비밀번호. DSL 파일에 값을 직접 적지 않는다.'
+    id: b8663a0c-a763-49eb-95cf-8dc703586d55
+    name: KS_PASSWORD
+    selector: [env, KS_PASSWORD]
+    value: ''
+    value_type: secret
+  features:
+    file_upload:
+      image:
+        detail: high
+        enabled: false
+        number_limits: 3
+        transfer_methods: [local_file, remote_url]
+    opening_statement: ''
+    retriever_resource: {enabled: false}
+    sensitive_word_avoidance: {enabled: false}
+    speech_to_text: {enabled: false}
+    suggested_questions: []
+    suggested_questions_after_answer: {enabled: false}
+    text_to_speech: {enabled: false, language: '', voice: ''}
+  graph:
+    edges:
+    - {id: start-source-prep-target, type: custom, source: start, sourceHandle: source, target: prep, targetHandle: target, label: '', data: {sourceType: start, targetType: code}}
+    - {id: prep-source-input_gate-target, type: custom, source: prep, sourceHandle: source, target: input_gate, targetHandle: target, label: '', data: {sourceType: code, targetType: if-else}}
+    - {id: input_gate-ok-login-target, type: custom, source: input_gate, sourceHandle: ok, target: login, targetHandle: target, label: '', data: {sourceType: if-else, targetType: http-request}}
+    - {id: input_gate-false-input_fail-target, type: custom, source: input_gate, sourceHandle: 'false', target: input_fail, targetHandle: target, label: '', data: {sourceType: if-else, targetType: code}}
+    - {id: login-source-auth_result-target, type: custom, source: login, sourceHandle: source, target: auth_result, targetHandle: target, label: '', data: {sourceType: http-request, targetType: code}}
+    - {id: auth_result-source-auth_gate-target, type: custom, source: auth_result, sourceHandle: source, target: auth_gate, targetHandle: target, label: '', data: {sourceType: code, targetType: if-else}}
+    - {id: auth_gate-ok-update-target, type: custom, source: auth_gate, sourceHandle: ok, target: update, targetHandle: target, label: '', data: {sourceType: if-else, targetType: http-request}}
+    - {id: auth_gate-false-auth_fail-target, type: custom, source: auth_gate, sourceHandle: 'false', target: auth_fail, targetHandle: target, label: '', data: {sourceType: if-else, targetType: code}}
+    - {id: update-source-update_result-target, type: custom, source: update, sourceHandle: source, target: update_result, targetHandle: target, label: '', data: {sourceType: http-request, targetType: code}}
+    - {id: update_result-source-merge-target, type: custom, source: update_result, sourceHandle: source, target: merge, targetHandle: target, label: '', data: {sourceType: code, targetType: variable-aggregator}}
+    - {id: input_fail-source-merge-target, type: custom, source: input_fail, sourceHandle: source, target: merge, targetHandle: target, label: '', data: {sourceType: code, targetType: variable-aggregator}}
+    - {id: auth_fail-source-merge-target, type: custom, source: auth_fail, sourceHandle: source, target: merge, targetHandle: target, label: '', data: {sourceType: code, targetType: variable-aggregator}}
+    - {id: merge-source-unpack-target, type: custom, source: merge, sourceHandle: source, target: unpack, targetHandle: target, label: '', data: {sourceType: variable-aggregator, targetType: code}}
+    - {id: unpack-source-done-target, type: custom, source: unpack, sourceHandle: source, target: done, targetHandle: target, label: '', data: {sourceType: code, targetType: end}}
+    nodes:
+    - id: start
+      type: custom
+      computedPosition: {x: 80, y: 180, z: 0}
+      dimensions: {height: 170, width: 280}
+      data:
+        desc: 'repo는 저장소 ID, sparql은 실행할 SPARQL Update 원문이다. 이 워크플로는 실제 데이터를 변경한다.'
+        display_variables: [repo, sparql]
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 입력
+        type: start
+        variables:
+        - {default: '', description: '기존 Knowledge Studio 저장소 ID', label: 저장소 ID, required: true, type: text-input, variable: repo}
+        - {default: '', description: 'INSERT DATA, DELETE DATA 등 SPARQL Update 원문', label: SPARQL Update, required: true, type: paragraph, variable: sparql}
+    - id: prep
+      type: custom
+      computedPosition: {x: 430, y: 180, z: 0}
+      dimensions: {height: 120, width: 300}
+      data:
+        code: |-
+          import json
+          import re
+          import uuid
+
+          def main(repo, sparql, ks_base_url, ks_username, ks_password):
+              repository_id = str(repo or '').strip()
+              update_text = str(sparql or '')
+              base = str(ks_base_url or '').strip().rstrip('/')
+              username = str(ks_username or '').strip()
+              password = str(ks_password or '')
+              error = ''
+              if not re.fullmatch(r'[A-Za-z0-9._-]+', repository_id):
+                  error = 'repo는 영문자·숫자·마침표·밑줄·하이픈으로 된 저장소 ID여야 합니다.'
+              elif not update_text.strip():
+                  error = 'sparql에 SPARQL Update 원문을 입력하세요.'
+              elif not re.fullmatch(r'https?://[^/\s]+', base):
+                  error = 'KS_BASE_URL을 http(s)://호스트[:포트] 형식으로 설정하세요.'
+              elif not username or not password:
+                  error = 'KS_USERNAME과 KS_PASSWORD secret 환경 변수를 설정하세요.'
+              return {
+                  'repo': repository_id,
+                  'error': error,
+                  'login_url': base + '/api/v1/auth/login',
+                  'login_body': json.dumps({'username': username, 'password': password}, ensure_ascii=False),
+                  'update_url': base + '/' + repository_id + '/update?timeout=30000',
+                  'query_id': str(uuid.uuid4()),
+              }
+        code_language: python3
+        desc: '입력 검사, 로그인 본문 구성, Update URL과 요청 UUID 생성. SPARQL 원문은 변경하지 않는다.'
+        outputs:
+          repo: {children: null, type: string}
+          error: {children: null, type: string}
+          login_url: {children: null, type: string}
+          login_body: {children: null, type: string}
+          update_url: {children: null, type: string}
+          query_id: {children: null, type: string}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 요청 구성
+        type: code
+        variables:
+        - {value_selector: [start, repo], variable: repo}
+        - {value_selector: [start, sparql], variable: sparql}
+        - {value_selector: [env, KS_BASE_URL], variable: ks_base_url}
+        - {value_selector: [env, KS_USERNAME], variable: ks_username}
+        - {value_selector: [env, KS_PASSWORD], variable: ks_password}
+    - id: input_gate
+      type: custom
+      computedPosition: {x: 800, y: 180, z: 0}
+      dimensions: {height: 100, width: 260}
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - {comparison_operator: empty, id: 646113c4-60aa-4208-af52-a5a923078d2e, value: '', varType: string, variable_selector: [prep, error]}
+          logical_operator: and
+        desc: '잘못된 입력이면 외부 API를 호출하지 않는다.'
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 입력 확인
+        type: if-else
+    - id: login
+      type: custom
+      computedPosition: {x: 1140, y: 80, z: 0}
+      dimensions: {height: 120, width: 300}
+      data:
+        authorization: {config: null, type: no-auth}
+        body:
+          data:
+          - {id: key-value-1, key: '', type: text, value: '{{#prep.login_body#}}'}
+          type: raw-text
+        default_value:
+        - {key: body, type: string, value: ''}
+        - {key: status_code, type: number, value: 0}
+        desc: '아이디와 비밀번호로 로그인하여 토큰을 발급받는다.'
+        error_strategy: default-value
+        headers: 'Content-Type:application/json;charset=UTF-8'
+        method: post
+        params: ''
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        ssl_verify: true
+        title: Knowledge Studio 로그인
+        type: http-request
+        url: '{{#prep.login_url#}}'
+        variables: []
+    - id: auth_result
+      type: custom
+      computedPosition: {x: 1510, y: 80, z: 0}
+      dimensions: {height: 100, width: 280}
+      data:
+        code: |-
+          import json
+
+          def main(body, status_code):
+              try:
+                  code = int(status_code or 0)
+              except (TypeError, ValueError):
+                  code = 0
+              try:
+                  parsed = json.loads(body) if body else {}
+              except (TypeError, ValueError):
+                  parsed = {}
+              token = str(parsed.get('token') or '') if isinstance(parsed, dict) and 200 <= code < 300 else ''
+              if token:
+                  error = ''
+              elif code == 0:
+                  error = '로그인 API 접속 또는 응답 오류입니다.'
+              elif not 200 <= code < 300:
+                  error = '로그인 실패 (HTTP ' + str(code) + ').'
+              else:
+                  error = '로그인 응답에 token 필드가 없습니다.'
+              return {'token': token, 'error': error, 'http_status': code}
+        code_language: python3
+        desc: '토큰을 내부 Update 노드에만 전달한다.'
+        outputs:
+          token: {children: null, type: string}
+          error: {children: null, type: string}
+          http_status: {children: null, type: number}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 로그인 응답 확인
+        type: code
+        variables:
+        - {value_selector: [login, body], variable: body}
+        - {value_selector: [login, status_code], variable: status_code}
+    - id: auth_gate
+      type: custom
+      computedPosition: {x: 1860, y: 80, z: 0}
+      dimensions: {height: 100, width: 260}
+      data:
+        cases:
+        - case_id: ok
+          conditions:
+          - {comparison_operator: empty, id: 012a6c2a-2384-4606-879e-b7ee183aa12f, value: '', varType: string, variable_selector: [auth_result, error]}
+          logical_operator: and
+        desc: '인증 실패 시 Update 호출을 중지한다.'
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 인증 성공 여부
+        type: if-else
+    - id: update
+      type: custom
+      computedPosition: {x: 2200, y: 80, z: 0}
+      dimensions: {height: 130, width: 300}
+      data:
+        authorization: {config: null, type: no-auth}
+        body:
+          data:
+          - {id: key-value-1, key: '', type: text, value: '{{#start.sparql#}}'}
+          type: raw-text
+        default_value:
+        - {key: body, type: string, value: ''}
+        - {key: status_code, type: number, value: 0}
+        - {key: headers, type: object, value: {}}
+        desc: 'IF-SOR-081. SPARQL 원문을 application/sparql-update로 전송한다. 자동 재시도는 중복 변경 위험 때문에 비활성화한다.'
+        error_strategy: default-value
+        headers: "Authorization:Bearer {{#auth_result.token#}}\nContent-Type:application/sparql-update\nAccept:application/json\nX-SOR-Query-Id:{{#prep.query_id#}}"
+        method: post
+        params: ''
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        ssl_verify: true
+        title: SPARQL Update 실행
+        type: http-request
+        url: '{{#prep.update_url#}}'
+        variables: []
+    - id: update_result
+      type: custom
+      computedPosition: {x: 2570, y: 80, z: 0}
+      dimensions: {height: 110, width: 300}
+      data:
+        code: |-
+          def main(repo, query_id, body, status_code, headers):
+              try:
+                  code = int(status_code or 0)
+              except (TypeError, ValueError):
+                  code = 0
+              h = headers if isinstance(headers, dict) else {}
+              correlation_id = ''
+              for key, value in h.items():
+                  if str(key).lower() == 'x-correlation-id':
+                      correlation_id = str(value)
+                      break
+              success = code == 204
+              message = ('SPARQL Update가 성공했습니다. 변경 건수는 반환되지 않으므로 ASK 또는 SELECT로 확인하세요.'
+                         if success else 'SPARQL Update가 실패했습니다.')
+              if code == 0:
+                  message += ' API 접속 또는 응답 오류를 확인하세요.'
+              return {'payload': {
+                  'status': 'success' if success else 'error',
+                  'repo': repo,
+                  'http_status': code,
+                  'query_id': query_id,
+                  'correlation_id': correlation_id,
+                  'message': message,
+                  'error_body': '' if success else str(body or '')[:2000],
+              }}
+        code_language: python3
+        desc: 'HTTP 204와 빈 본문을 성공으로 처리하고 오류 본문 및 상관 ID를 반환한다.'
+        outputs:
+          payload: {children: null, type: object}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: Update 응답 정리
+        type: code
+        variables:
+        - {value_selector: [prep, repo], variable: repo}
+        - {value_selector: [prep, query_id], variable: query_id}
+        - {value_selector: [update, body], variable: body}
+        - {value_selector: [update, status_code], variable: status_code}
+        - {value_selector: [update, headers], variable: headers}
+    - id: input_fail
+      type: custom
+      computedPosition: {x: 1140, y: 360, z: 0}
+      dimensions: {height: 100, width: 290}
+      data:
+        code: |-
+          def main(repo, error):
+              return {'payload': {'status': 'invalid_arguments', 'repo': repo,
+                  'http_status': 0, 'query_id': '', 'correlation_id': '',
+                  'message': error, 'error_body': ''}}
+        code_language: python3
+        desc: '입력 또는 환경 변수 오류를 외부 호출 없이 반환한다.'
+        outputs:
+          payload: {children: null, type: object}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 입력 오류
+        type: code
+        variables:
+        - {value_selector: [prep, repo], variable: repo}
+        - {value_selector: [prep, error], variable: error}
+    - id: auth_fail
+      type: custom
+      computedPosition: {x: 2200, y: 360, z: 0}
+      dimensions: {height: 100, width: 290}
+      data:
+        code: |-
+          def main(repo, error, http_status):
+              return {'payload': {'status': 'authentication_error', 'repo': repo,
+                  'http_status': int(http_status or 0), 'query_id': '',
+                  'correlation_id': '', 'message': error, 'error_body': ''}}
+        code_language: python3
+        desc: '로그인 실패를 반환하되 자격 증명은 반환하지 않는다.'
+        outputs:
+          payload: {children: null, type: object}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 인증 오류
+        type: code
+        variables:
+        - {value_selector: [prep, repo], variable: repo}
+        - {value_selector: [auth_result, error], variable: error}
+        - {value_selector: [auth_result, http_status], variable: http_status}
+    - id: merge
+      type: custom
+      computedPosition: {x: 2940, y: 180, z: 0}
+      dimensions: {height: 100, width: 270}
+      data:
+        desc: '실행된 분기의 결과만 합친다.'
+        output_type: object
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 결과 합류
+        type: variable-aggregator
+        variables: [[update_result, payload], [input_fail, payload], [auth_fail, payload]]
+    - id: unpack
+      type: custom
+      computedPosition: {x: 3280, y: 180, z: 0}
+      dimensions: {height: 100, width: 270}
+      data:
+        code: |-
+          def main(payload):
+              p = payload if isinstance(payload, dict) else {}
+              return {
+                  'status': str(p.get('status', 'error')),
+                  'repo': str(p.get('repo', '')),
+                  'http_status': int(p.get('http_status', 0) or 0),
+                  'query_id': str(p.get('query_id', '')),
+                  'correlation_id': str(p.get('correlation_id', '')),
+                  'message': str(p.get('message', '')),
+                  'error_body': str(p.get('error_body', '')),
+              }
+        code_language: python3
+        desc: 'MCP에서 읽기 쉽도록 출력 필드를 분리한다.'
+        outputs:
+          status: {children: null, type: string}
+          repo: {children: null, type: string}
+          http_status: {children: null, type: number}
+          query_id: {children: null, type: string}
+          correlation_id: {children: null, type: string}
+          message: {children: null, type: string}
+          error_body: {children: null, type: string}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 출력 필드 구성
+        type: code
+        variables:
+        - {value_selector: [merge, output], variable: payload}
+    - id: done
+      type: custom
+      computedPosition: {x: 3620, y: 180, z: 0}
+      dimensions: {height: 110, width: 270}
+      data:
+        desc: 'HTTP 204는 성공이지만 실제 변경 건수는 알 수 없다.'
+        display_variables: [status, repo, http_status, query_id, correlation_id, message, error_body]
+        outputs:
+        - {value_selector: [unpack, status], variable: status}
+        - {value_selector: [unpack, repo], variable: repo}
+        - {value_selector: [unpack, http_status], variable: http_status}
+        - {value_selector: [unpack, query_id], variable: query_id}
+        - {value_selector: [unpack, correlation_id], variable: correlation_id}
+        - {value_selector: [unpack, message], variable: message}
+        - {value_selector: [unpack, error_body], variable: error_body}
+        retry_config: {max_retries: 3, retry_enabled: false, retry_interval: 300}
+        title: 결과 반환
+        type: end
+    viewport: {x: 0, y: 0, zoom: 0.6}
+  rag_pipeline_variables: []

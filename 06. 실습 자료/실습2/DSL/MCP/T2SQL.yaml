@@ -1,0 +1,318 @@
+version: 0.1.0
+kind: agent-studio-tool
+tool:
+  type: node_config
+  source_id: 54da2869-b12b-4d41-ba41-000387fa7639
+  resource_type: mcp
+  node_config:
+    name: mcp-server
+    label: T2SQL
+    icon: ri-plug-line
+    icon_bg: green
+    description: 오라클 데이터베이스를 접근해서 sql문을 생성하고, 데이터를 조회합니다.
+    node_group: 도구
+    depth: 0
+    sort_order: 0
+    type: mcp-server-template
+    node_json:
+      managed_by: workflow-mcp-server
+    config_json: {}
+  dependencies:
+    node_configs: []
+    skills: []
+    knowledges: []
+    single_agents: []
+    code_agents: []
+    workflow_apps:
+    - source_app_id: 2ba74a2b-6788-44d4-baf4-ef554bcd009a
+      source_workflow_id: 9f8f6beb-e9e9-43ed-a955-f9e1254270aa
+      source_current_workflow_id: 9f8f6beb-e9e9-43ed-a955-f9e1254270aa
+      app:
+        name: sql_run
+        mode: workflow
+        type: agent
+        icon: ri-git-merge-line
+        icon_background: '#14b8a6'
+        description: 오라클 데이터베이스를 접근해서 sql문을 생성하고, 데이터를 조회합니다.
+        use_icon_as_answer_icon: false
+      workflow:
+        version: '2026-09-29 14:35:14.171641'
+        marked_name: v0.0.1
+        marked_comment: ''
+        graph:
+          nodes:
+          - id: '1790087843576'
+            type: custom
+            dimensions:
+              width: 280
+              height: 126
+            computedPosition:
+              x: 0
+              y: 0
+              z: 1003
+            handleBounds:
+              source:
+              - id: source
+                type: source
+                nodeId: '1790087843576'
+                position: right
+                x: 276.8923645019531
+                y: 23.107635498046875
+                width: 8
+                height: 8
+              target: null
+            selected: false
+            dragging: false
+            resizing: false
+            initialized: false
+            isParent: false
+            position:
+              x: 0
+              y: 0
+            data:
+              desc: ''
+              display_variables:
+              - sql_query
+              retry_config:
+                retry_enabled: false
+                max_retries: 3
+                retry_interval: 300
+              selected: false
+              title: 시작
+              type: start
+              variables:
+              - default: ''
+                hint: ''
+                label: sql_query
+                max_length: 100000
+                options: []
+                placeholder: ''
+                required: true
+                select_type: ''
+                type: text-input
+                variable: sql_query
+            events: {}
+            sourcePosition: right
+            targetPosition: left
+            zIndex: 1003
+          - id: '1790087876744'
+            type: custom
+            dimensions:
+              width: 280
+              height: 92
+            computedPosition:
+              x: 340
+              y: 0
+              z: 1004
+            handleBounds:
+              source:
+              - id: source
+                type: source
+                nodeId: '1790087876744'
+                position: right
+                x: 276.8923645019531
+                y: 23.107635498046875
+                width: 8
+                height: 8
+              target:
+              - id: target
+                type: target
+                nodeId: '1790087876744'
+                position: left
+                x: -4.878448486328125
+                y: 23.107635498046875
+                width: 8
+                height: 8
+            selected: false
+            dragging: false
+            resizing: false
+            initialized: false
+            isParent: false
+            position:
+              x: 340
+              y: 0
+            data:
+              body:
+                data: []
+                type: none
+              break_conditions: []
+              cases: []
+              code: ''
+              code_language: python3
+              database: FREEPDB1
+              db_type: oracle
+              desc: ''
+              entries: []
+              extract_by:
+                enabled: false
+                serial: '1'
+              filter_by:
+                conditions: []
+                enabled: false
+              host: 192.168.250.101
+              input_mapping: []
+              items: []
+              limit:
+                enabled: false
+                size: -1
+              loop_variables: []
+              max_rows: 20
+              oracle_connection_mode: service_name
+              order_by:
+                enabled: false
+                key: ''
+                value: asc
+              output_keys: []
+              output_vars: []
+              outputs: {}
+              paramSchemas: []
+              parameters: []
+              password: Plm_2026
+              password_input_type: constant
+              password_value_selector: []
+              port: 11521
+              query: '{{#1790087843576.sql_query#}}'
+              query_is_plain_text: true
+              query_timeout: 30
+              retry_config:
+                retry_enabled: false
+                max_retries: 3
+                retry_interval: 300
+              selected: false
+              timeout:
+                connect: 0
+                read: 0
+                write: 0
+              title: SQL 쿼리
+              tool_configurations: {}
+              type: sql-query
+              username: plm
+              variables: []
+              workflow_id: ''
+            events: {}
+            sourcePosition: right
+            targetPosition: left
+            zIndex: 1004
+          - id: '1790088069082'
+            type: custom
+            dimensions:
+              width: 280
+              height: 116
+            computedPosition:
+              x: 692
+              y: 0
+              z: 1005
+            handleBounds:
+              source: null
+              target:
+              - id: target
+                type: target
+                nodeId: '1790088069082'
+                position: left
+                x: -4.87847900390625
+                y: 23.107635498046875
+                width: 8
+                height: 8
+            selected: false
+            dragging: false
+            resizing: false
+            initialized: false
+            isParent: false
+            position:
+              x: 692
+              y: 0
+            data:
+              body:
+                data: []
+              desc: ''
+              display_variables:
+              - result
+              outputs:
+              - value_selector:
+                - '1790087876744'
+                - rows
+                value_type: array[object]
+                variable: result
+              retry_config:
+                retry_enabled: false
+                max_retries: 3
+                retry_interval: 300
+              selected: true
+              title: 끝
+              type: end
+            events: {}
+            sourcePosition: right
+            targetPosition: left
+            zIndex: 1005
+          edges:
+          - id: 1790087843576-source-1790087876744-target
+            type: custom
+            source: '1790087843576'
+            target: '1790087876744'
+            sourceHandle: source
+            targetHandle: target
+            data:
+              isInIteration: false
+              isInLoop: false
+              sourceType: start
+              targetType: sql-query
+            label: ''
+            zIndex: 0
+          - id: 1790087876744-source-1790088069082-target
+            type: custom
+            source: '1790087876744'
+            target: '1790088069082'
+            sourceHandle: source
+            targetHandle: target
+            data:
+              isInIteration: false
+              isInLoop: false
+              sourceType: sql-query
+              targetType: end
+            label: ''
+            zIndex: 0
+          viewport:
+            x: 0
+            y: 0
+            zoom: 0
+        features:
+          opening_statement: ''
+          suggested_questions: []
+          suggested_questions_after_answer:
+            enabled: false
+          text_to_speech:
+            enabled: false
+            voice: ''
+            language: ''
+          speech_to_text:
+            enabled: false
+          retriever_resource:
+            enabled: false
+          sensitive_word_avoidance:
+            enabled: false
+          file_upload:
+            image:
+              enabled: false
+              detail: high
+              number_limits: 3
+              transfer_methods:
+              - local_file
+              - remote_url
+        environment_variables: []
+        conversation_variables: []
+        rag_pipeline_variables: []
+    workflow_tools: []
+    workflow_mcp_servers:
+    - source_id: c9930e53-2361-430d-a561-139c80f5f586
+      source_node_config_id: 54da2869-b12b-4d41-ba41-000387fa7639
+      workflow_mcp_server:
+        name: T2SQL
+        description: 오라클 데이터베이스를 접근해서 sql문을 생성하고, 데이터를 조회합니다.
+      tools:
+      - source_id: bd6b4e4c-eaa3-4b85-8f60-a9bfa3162cb1
+        source_workflow_app_id: 2ba74a2b-6788-44d4-baf4-ef554bcd009a
+        source_workflow_id: 9f8f6beb-e9e9-43ed-a955-f9e1254270aa
+        tool_name: sql_execute
+        tool_description: ''
+        parameter_descriptions:
+          sql_query: ''
